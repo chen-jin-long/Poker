@@ -1,0 +1,25 @@
+/*
+20 同花大顺
+19 同花顺
+18 四条
+17 满堂红
+16 同花
+15 顺子
+14 三条
+13 两对
+12 一对
+11 高牌
+10 普通牌
+
+*/
+#define POKER_TYPE_MAX_FLUSH_FLUSH 20
+#define POKER_TYPE_FLUSH_STRAIGHT 19
+#define POKER_TYPE_FOUR 18
+#define POKER_TYPE_FULLHOUSE 17
+#define POKER_TYPE_FLUSH 16
+#define POKER_TYPE_STRAIGHT 15
+#define POKER_TYPE_THREE_KIND 14
+#define POKER_TYPE_TWO_PAIR 13
+#define POKER_TYPE_ONE_PAIR 12
+#define POKER_TYPE_A 11
+#define POKER_TYPE_SINGLE 10 
