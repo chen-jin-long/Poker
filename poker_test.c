@@ -19,9 +19,9 @@
 10 普通牌
 
 */
-int get_test_data(const char *file,Person *person,Game *game,int (*func)(Person person,Game *game)){
+int get_test_data(const char *file,Person *person,Game *game,int (*func)(Person person,Game *game),int *best){
     FILE *fp = NULL;
-    int i = 0,j = 0;
+    int i = 0,j = 0,give_result = 0;
     fp = fopen(file,"r");
     if(fp == NULL){
         printf("can't open file.\n");
@@ -31,10 +31,18 @@ int get_test_data(const char *file,Person *person,Game *game,int (*func)(Person 
     while(fgets(buffer,SIZE,fp) != NULL){
         printf("%s",buffer);
         char *p = buffer;
+        give_result = 0;
         get_priv_data(buffer,person,game);
+        get_test_result(buffer,&give_result);
         //int result = slow_test_poker_algo(*person,game);
         int result = func(*person,game);
-        printf("result = %d\n",result);  
+        *best = result;
+        printf("result = %d\n",result); 
+        if(give_result != result){
+            printf("ERROR,ERROR!!!!!\n");
+        }else{
+            printf("Success,Success...\n");
+        } 
         if(result != 0){
           for(j = 0;j < 5;j++){
             printf("best_chance[%d] .value = %d,.color = %c\n",j,(*person->best_chance+j)->value,(*person->best_chance+j)->color);
@@ -49,10 +57,10 @@ int get_test_data(const char *file,Person *person,Game *game,int (*func)(Person 
 
 void get_priv_data(const char *buffer,Person *person,Game *game){
     char *p = buffer;
-    int close = 0,i = 0,count = 0,flag = 0,result=0,num= 0,k=0;
+    int close = 0,i = 0,count = 0,flag = 0,result = 0,num = 0,k = 0;
     char value[PRIV_LEN];
     char color;
-    while(*(p+i) != '\0' && *(p+i) != '\n' && *(p+i) != ';'){
+    while(*(p+i) != '\0' && *(p+i) != '\n' && *(p+i) != ';' && (*p+i) != '#'){
         if(*(p+i) != ','){
           if(*(p+i) == ':'){
             if(count == 1){
@@ -81,6 +89,37 @@ void get_priv_data(const char *buffer,Person *person,Game *game){
     }
     (*game->pub)[num-2].value= result;
     (*game->pub)[num-2].color = color;
+}
+
+void get_test_result(const char *buffer,int *result){
+
+    char *p = buffer;
+    int i = 0, begin = 0,count = 0;
+    char value[3];//we just need 3 char to store poker type,and the one is '\0' to use atoi 
+    while(*(p+i) != '\0' && *(p+i) != '\n' && *(p+i) != '#'){
+        //printf("char is %c\n",*(p+i));
+        if(*(p+i) == ';'){
+            if(begin == 0){
+                begin = 1;
+                i++;
+                continue;
+            }
+            else break;
+        }
+        if(begin == 1){
+            value[count] = *(p+i);
+            count ++;
+        }
+        if(count == 2){
+            value[2] = '\0';
+            break;
+        }
+        i++;
+        //printf("===\n");
+    }
+    if(count <= 2)value[count] = '\0';
+    else value[2] = '\0';
+    *result = atoi(value);
 }
 int slow_algo_flush_game(int poker[],char color[]){
     int i,is_straight = 1,is_color = 1,is_royal = 0,count,det = 0;
@@ -249,10 +288,13 @@ int main(){
     Person p1 = { 0,{{0,'s'},{0,'s'}} ,&max_chance};
     Poker pub[5] = { {0,'s'},{0,'s'},{0,'s'},{0,'s'},{0,'d'} };
     Game game = {{p1,p1},&pub};
-    int i = 0;
-    int data = get_test_data("data.txt",&p1,&game,slow_test_poker_algo);
+    int best = 0;
+    get_test_data("data.txt",&p1,&game,slow_test_poker_algo,&best);
+    //int test_result = 0;
+   // get_test_result(";",&test_result);
+    //printf("reselt: %d\n",test_result);
     /*
-    for(i = 0;i<PRIV_LEN;i++){
+    for(i = 0;i<PRIV_LEN;i++)
        printf("priv[%d]:value = %d,color = %c\n",i,p1.priv[i].value,p1.priv[i].color);
     }   
     for(i=0;i<PUB_LEN;i++){

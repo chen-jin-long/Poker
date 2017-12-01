@@ -86,7 +86,6 @@ int compare_three(int poker1[],int poker2[],int type){
     return 0;
 }
 int compare_two(int poker1[],int poker2[],int type){
-    printf("compare_two\n");
     int value1[4] = {0,0,0,0};
     int value2[4]= {0,0,0,0};
     int flag1[4];
