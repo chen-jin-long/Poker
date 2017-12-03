@@ -40,6 +40,7 @@ int get_test_data(const char *file,Person *person,Game *game,int (*func)(Person 
         printf("result = %d\n",result); 
         if(give_result != result){
             printf("ERROR,ERROR!!!!!\n");
+            break;
         }else{
             printf("Success,Success...\n");
         } 
