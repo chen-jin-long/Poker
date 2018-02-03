@@ -12,6 +12,9 @@ int is_find(int base[],int len,int value){
 int is_search(int base[],int len1,int find[],int len2){
     //printf("====len1 = %d========\n",len1);
     //int i ,flag ,j,is_A;
+    print_Array("base",base,len1);
+    print_Array("find",find,len2);
+    printf("len2 = %d\n",len2);
     int i = 0,flag = 0,j=0,is_A = 0;
     //for(i = 0;i<len2;i++)printf("find[%d] = %d\n",i,find[i]);
     int * f =NULL;
@@ -153,6 +156,7 @@ int is_flush(int pub[],int len1,int priv[],int len2,int * max_poker){
 int get_max_constant_num(int pub[],int pub_len,int flag[],int flag_len,int *max){
   int find = 0,i;
   if(pub_len < flag_len)return max;
+  print_array(flag,flag_len);
   for(i = flag_len-1;i >= 0;i--){
     if(flag[i] == 0){
        *max = pub[i];
@@ -218,6 +222,35 @@ void sort_and_color(int poker[],char color[],int len){
     }
   }
 }
+
+int sort_poker_game(Person *person,Game *game){
+  int pub[PUB_LEN]={0};
+  char pub_color[PUB_LEN] = {'s'};
+  int priv[PRIV_LEN] = {0};
+  char priv_color[PRIV_LEN] = {'s'};
+  int i = 0;
+  for(i = 0;i < PRIV_LEN;i++){
+    priv[i] = (person->priv)[i].value;
+    priv_color[i] = (person->priv)[i].color;
+  }
+  sort_and_color(priv,priv_color,PRIV_LEN); 
+  for(i = 0;i < PRIV_LEN;i++){
+    (person->priv)[i].value = priv[i];
+    (person->priv)[i].color = priv_color[i];
+  }
+
+  for(i = 0;i< PUB_LEN;i++){
+   pub[i] = (*(game->pub))[i].value;
+   pub_color[i] = (*(game->pub))[i].color;
+  }
+  sort_and_color(pub,pub_color,PUB_LEN);
+  
+  for(i = 0;i< PUB_LEN;i++){
+   (*(game->pub))[i].value = pub[i];
+   (*(game->pub))[i].color = pub_color[i];
+  }
+}
+
 void print_array(int poker[],int len){
   int i=0;
   for(i = 0;i<len;i++){
@@ -233,6 +266,13 @@ void print_color(char color[],int len){
   printf("\n");
 }
 
+void print_Array(const char * name,int poker[],int len){
+  int i=0;
+  for(i = 0;i<len;i++){
+    printf("%s[%d] = %d ,",name,i,poker[i]);
+  }
+  printf("\n");
+}
 void get_three_poker_val(int poker[],int *value){
         int i = 0,count = 0;
         int flag[PUB_LEN -1];

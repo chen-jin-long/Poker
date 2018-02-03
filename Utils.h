@@ -1,3 +1,6 @@
+#ifndef _POKER_UTILS_
+#define _POKER_UTILS_
+#include "poker.h"
 int is_find(int base[],int len,int value);
 int is_search(int base[],int len1,int find[],int len2);
 int  get_max_poker(int pub[],int len1,int priv[],int len2);
@@ -11,3 +14,5 @@ void sort(int poker[],int len);
 void print_array(int poker[],int len);
 void print_color(char color[],int len);
 void get_three_poker_val(int poker[],int *value);
+int sort_poker_game(Person *person,Game *game);
+#endif

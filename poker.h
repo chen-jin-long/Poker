@@ -1,5 +1,7 @@
+#ifndef _POKER_POKER_
+#define _POKER_POKER_
 #include<stdio.h>
-
+#include "poker_type.h"
 #define PRIV_LEN 2
 #define PUB_LEN  5
 
@@ -23,3 +25,5 @@ int is_flush_game(Person person,Game *game);
 int is_four_poker(Person person,Game *game);
 int is_three_poker(Person person,Game *game);
 int is_have_constant(int flag[],int value,int nums,int end,int *loc);
+int fast_poker_algo(Person person,Game *game);
+#endif

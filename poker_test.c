@@ -37,7 +37,8 @@ int get_test_data(const char *file,Person *person,Game *game,int (*func)(Person 
         //int result = slow_test_poker_algo(*person,game);
         int result = func(*person,game);
         *best = result;
-        printf("result = %d\n",result); 
+        give_result = slow_test_poker_algo(*person,game);
+        printf("give_result = %d,result = %d\n",give_result,result); 
         if(give_result != result){
             printf("ERROR,ERROR!!!!!\n");
             break;
@@ -206,6 +207,7 @@ int slow_algo_poker(int pub[],char color[]){
        return (type > out?type:out);
     }
 }
+
 int slow_test_poker_algo(Person person,Game *game){
     int priv[2] = {person.priv[0].value,person.priv[1].value};
     Poker pub_poker[PUB_LEN];
@@ -290,7 +292,8 @@ int main(){
     Poker pub[5] = { {0,'s'},{0,'s'},{0,'s'},{0,'s'},{0,'d'} };
     Game game = {{p1,p1},&pub};
     int best = 0;
-    get_test_data("data.txt",&p1,&game,slow_test_poker_algo,&best);
+    //get_test_data("data.txt",&p1,&game,slow_test_poker_algo,&best);
+    get_test_data("a.txt",&p1,&game,fast_poker_algo,&best);
     //int test_result = 0;
    // get_test_result(";",&test_result);
     //printf("reselt: %d\n",test_result);
