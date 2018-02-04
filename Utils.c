@@ -124,6 +124,7 @@ int is_flush(int pub[],int len1,int priv[],int len2,int * max_poker){
      for(i = PUB_LEN-1; i >= 0;i--){
           if(pub[i] == same){
                best_loc = i;
+               LOG_DEBUG("have same values,same = %d,loc= %d",same,i);
                return best_loc;
            }
      }
@@ -134,6 +135,7 @@ int is_flush(int pub[],int len1,int priv[],int len2,int * max_poker){
             break;
          }
       }
+     LOG_DEBUG("best_loc = %d",best_loc);
      return best_loc;
  }
  int * get_max_num_poker(int pub[],int len,int diff,int num){

@@ -199,7 +199,7 @@ int is_flush_poker(Person person,Game *game){
   }
 }else{
   is_straight = 0;
-  printf("fuck..................\n");
+  LOG_DEBUG("fuck..................\n");
   //print_array(values,PUB_LEN);
   is_straight = is_combine_straight(values,PUB_LEN,priv,PRIV_LEN,&max_straight);
   if(is_straight){
@@ -335,7 +335,7 @@ int is_three_poker(Person person,Game *game){
             //if(priv[0] == priv[1]) type_result = POKER_TYPE_FULLHOUSE;
             //else type_result = POKER_TYPE_THREE_KIND;
         }else{
-            printf("test...............\n");
+            LOG_DEBUG("test...............\n");
             for(i = 0;i < 3;i++)
               (*person.best_chance + i)->value = three_value[1];
             /*
@@ -377,6 +377,7 @@ int is_three_poker(Person person,Game *game){
    // 也就是说最多存在3个0，且不能是连续的3个0，
  
    int zero_num = cal_num_in_array(flag,PUB_LEN-1,0);
+   LOG_DEBUG("zero_num = %d",zero_num);
    if(zero_num == 3){
       for(i = 0;i<PUB_LEN-2;i++){
         // only:0010,0100
@@ -434,7 +435,7 @@ int is_three_poker(Person person,Game *game){
       type_result = 1;
    }else if(zero_num == 2 || zero_num == 1){
      int temp_loc2;
-     printf("hahahahaa\n");
+     LOG_DEBUG("hahahahaa\n");
      if(is_have_constant(flag,0,2,PUB_LEN-1,&temp_loc2)){
             (*person.best_chance + 0)->value = pub[temp_loc2];
             (*person.best_chance + 1)->value = pub[temp_loc2];
@@ -459,6 +460,7 @@ int is_three_poker(Person person,Game *game){
           }
           if(three_result_temp == 1){
             temp_max = 0;
+            LOG_DEBUG("tree_result_temp == 1");
             temp_max = get_bestchance_fourth_poker(pub,(*person.best_chance + 3)->value ,pub[i]);
             (*person.best_chance + 4)->value = pub[temp_max]; 
             //compare four and five value for poker A,
@@ -467,8 +469,10 @@ int is_three_poker(Person person,Game *game){
                 (*person.best_chance + 3)->value = (*person.best_chance +4)->value;
                 (*person.best_chance + 4)->value = temp_value;
             }
-            if(pub[0] == 1 && pub[0] != pub[i]){
-              (*person.best_chance + 3)->value = 1;
+            if((*person.best_chance+3)->value != (*person.best_chance+4)->value){
+              if(pub[0] == 1 && pub[0] != pub[i]){
+                (*person.best_chance + 3)->value = 1;
+              }
             }
            //return 1;
            type_result = 1;

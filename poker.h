@@ -26,4 +26,14 @@ int is_four_poker(Person person,Game *game);
 int is_three_poker(Person person,Game *game);
 int is_have_constant(int flag[],int value,int nums,int end,int *loc);
 int fast_poker_algo(Person person,Game *game);
+#define __POKER_DEBUG__
+#ifdef __POKER_DEBUG__
+  #define LOG_DEBUG(format,...) \
+   do {\
+       printf("%s(line:%d),"format"\n",__func__,__LINE__,##__VA_ARGS__);\
+   }while(0)
+#else
+  #define LOG_DEBUG(TAG,...)
+#endif
+
 #endif

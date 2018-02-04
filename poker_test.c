@@ -5,6 +5,7 @@
 #include "poker_type.h"
 #include "poker_compare.h"
 #define SIZE 100
+typedef int (*FUNC_ALGO)(Person person,Game *game);
 /*
 20 同花大顺
 19 同花顺
@@ -19,9 +20,10 @@
 10 普通牌
 
 */
-int get_test_data(const char *file,Person *person,Game *game,int (*func)(Person person,Game *game),int *best){
+int get_test_data(const char *file,Person *person,Game *game,FUNC_ALGO func,int *best){
     FILE *fp = NULL;
     int i = 0,j = 0,give_result = 0;
+    int count = 0;
     fp = fopen(file,"r");
     if(fp == NULL){
         printf("can't open file.\n");
@@ -38,12 +40,13 @@ int get_test_data(const char *file,Person *person,Game *game,int (*func)(Person 
         int result = func(*person,game);
         *best = result;
         give_result = slow_test_poker_algo(*person,game);
-        printf("give_result = %d,result = %d\n",give_result,result); 
+        printf("give_result = %d,result = %d\n",give_result,result);
+        count ++; 
         if(give_result != result){
-            printf("ERROR,ERROR!!!!!\n");
+            printf("ERROR,ERROR!!!!! count= %d\n",count);
             break;
         }else{
-            printf("Success,Success...\n");
+            printf("Success,Success... count = %d\n",count);
         } 
         if(result != 0){
           for(j = 0;j < 5;j++){
@@ -311,5 +314,6 @@ int main(){
     Poker pub[5] = { {0,'s'},{0,'s'},{0,'s'},{0,'s'},{0,'d'} };
     Game game = {{p1,p1},&pub};
     */
+    LOG_DEBUG("......END....");
     return 0;
 }
