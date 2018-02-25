@@ -12,6 +12,7 @@ int get_max_constant_num(int pub[],int pub_len,int flag[],int flag_len,int *max)
 int is_have_constant(int flag[],int value,int nums,int end,int *loc);
 void sort(int poker[],int len);
 void print_array(int poker[],int len);
+void print_Array(const char * name,int poker[],int len);
 void print_color(char color[],int len);
 void get_three_poker_val(int poker[],int *value);
 int sort_poker_game(Person *person,Game *game);

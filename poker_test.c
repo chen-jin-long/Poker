@@ -29,6 +29,7 @@ int get_test_data(const char *file,Person *person,Game *game,FUNC_ALGO func,int 
         printf("can't open file.\n");
         return 0;
     }
+    int count_type[11] = {0};
     char buffer[SIZE];
     while(fgets(buffer,SIZE,fp) != NULL){
         printf("%s",buffer);
@@ -47,6 +48,8 @@ int get_test_data(const char *file,Person *person,Game *game,FUNC_ALGO func,int 
             break;
         }else{
             printf("Success,Success... count = %d\n",count);
+            count_result_type(count_type,result);
+            print_Array("count_result_type",count_type,11);
         } 
         if(result != 0){
           for(j = 0;j < 5;j++){
@@ -126,6 +129,15 @@ void get_test_result(const char *buffer,int *result){
     else value[2] = '\0';
     *result = atoi(value);
 }
+
+void count_result_type(int result[],int type){
+    if(type < POKER_TYPE_SINGLE || type > POKER_TYPE_MAX_FLUSH_FLUSH){
+      printf("error type...\n");
+    }else{
+      result[type-POKER_TYPE_SINGLE]++;
+    }
+} 
+
 int slow_algo_flush_game(int poker[],char color[]){
     int i,is_straight = 1,is_color = 1,is_royal = 0,count,det = 0;
     for(i = 0,count = 0;i<PUB_LEN-1;i++){
@@ -157,6 +169,7 @@ int slow_algo_flush_game(int poker[],char color[]){
     else if(is_straight == 1 && is_color == 0)return 15;//顺子
     else return 0;
 }
+
 int slow_algo_four_game(int poker[],char color){
     int i = 0,flag[PUB_LEN - 1],count = 0,loc = 0,find = 0;
     for(i = 0;i<PUB_LEN-1;i++){
@@ -289,14 +302,16 @@ int slow_test_poker_algo(Person person,Game *game){
     }
     return result[0];
 }
-int main(){
+int main(int argc,char *argv[]){
+    if(argc < 2)return 0;
+    const char * fname = argv[1];
     Poker max_chance[5] = {{0,'s'},{0,'s'},{0,'s'},{0,'s'},{0,'s'}};
     Person p1 = { 0,{{0,'s'},{0,'s'}} ,&max_chance};
     Poker pub[5] = { {0,'s'},{0,'s'},{0,'s'},{0,'s'},{0,'d'} };
     Game game = {{p1,p1},&pub};
     int best = 0;
     //get_test_data("data.txt",&p1,&game,slow_test_poker_algo,&best);
-    get_test_data("a.txt",&p1,&game,fast_poker_algo,&best);
+    get_test_data(fname,&p1,&game,fast_poker_algo,&best);
     //int test_result = 0;
    // get_test_result(";",&test_result);
     //printf("reselt: %d\n",test_result);
@@ -315,5 +330,6 @@ int main(){
     Game game = {{p1,p1},&pub};
     */
     LOG_DEBUG("......END....");
+    printf("fname = %s\n",fname);
     return 0;
 }

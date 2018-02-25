@@ -1,3 +1,3 @@
-rm a.out
-gcc poker_test.c poker_compare.c Utils.c poker.c
-./a.out
+rm test.out
+gcc -o test.out poker_test.c poker_compare.c Utils.c poker.c
+./test.out all.txt

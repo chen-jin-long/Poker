@@ -162,7 +162,7 @@ int is_flush_poker(Person person,Game *game){
     is_straight = is_combine_straight(values,count,priv,PRIV_LEN,&max_straight);
     if(is_straight == 1){
       // 是顺子 且是 同花
-      printf(" is color-straight \n");
+      printf(" is color-straight ,max_straight = %d\n",max_straight);
       if(max_straight == 14){
        // Poker max_chance_one[5] =  {{10,color},{11,color},{12,color},{13,color},{1,color}};
         // person.best_chance = &max_chance_one;
@@ -220,7 +220,7 @@ int is_flush_poker(Person person,Game *game){
 
 int is_four_poker(Person person,Game *game){
    //如果私牌相同，在底牌中找两个相同的即可。
-   //如果四牌不相同，在底牌中找三个相同的即可，存在两种情况
+   //如果私牌不相同，在底牌中找三个相同的即可，存在两种情况
   int det = person.priv[1].value - person.priv[0].value;
   Poker pub[PUB_LEN];
   int i = 0,result = 0,max = 0;
@@ -281,6 +281,8 @@ int is_four_poker(Person person,Game *game){
           (*person.best_chance +4)->value = (max == priv_value[0]?priv_value[1]:priv_value[0]);
       }
    }
+  if(result == 1)result = POKER_TYPE_FOUR;
+  else result = POKER_TYPE_UNKNOW;
   return result;
 }
 
