@@ -54,7 +54,9 @@ int is_combine_straight(int pub[],int len1,int priv[],int len2,int *max_poker){
 
    }else if(det == 3){
       // 3 6 --> 3 4 5 6 --> x a; a x ;so have 2 method
+     printf("det ================== 3\n");
      int mid[] = {priv[0] +1,priv[0] +2};
+     print_Array("priv",priv,2);
      if(1 == is_search(pub,len1,mid,(int)sizeof(mid)/sizeof(int))){
           int m1[1] = {priv[1] + 1};
           int m2[1] = {priv[0] - 1};
@@ -62,7 +64,11 @@ int is_combine_straight(int pub[],int len1,int priv[],int len2,int *max_poker){
           int find_len = (int)sizeof(m1)/sizeof(int);
           for(i = 0;i<2;i++){
               if(1 == is_search(pub,len1,p[i],find_len)){
-                 *max_poker = get_max_poker(p[i],find_len,priv,len2);
+                 if(m1[0] == 14){
+                   *max_poker = 14;
+                 }else{
+                   *max_poker = get_max_poker(p[i],find_len,priv,len2);
+                 }
                  return 1;
               }
           }

@@ -15,7 +15,7 @@ int is_search(int base[],int len1,int find[],int len2){
     print_Array("base",base,len1);
     print_Array("find",find,len2);
     printf("len2 = %d\n",len2);
-    int i = 0,flag = 0,j=0,is_A = 0;
+    int i = 0,flag = 0,j=0,is_A = 0,loc_A = 0;
     //for(i = 0;i<len2;i++)printf("find[%d] = %d\n",i,find[i]);
     int * f =NULL;
     f =(int *) malloc(sizeof(int)*len1);
@@ -25,15 +25,16 @@ int is_search(int base[],int len1,int find[],int len2){
     i = 0;
     while(i < len2){
       flag = 0;
-     if(find[i] < 1 || find[i] >14)return -2;
-     else if(find[i] == 14){
-        is_A = i;
+      if(find[i] < 1 || find[i] >14)return -2;
+      else if(find[i] == 14){
+        is_A = 1;
+        loc_A = i;
         find[i] = 1;// to sovle A ; 
-     }
+      }
       while(j < len1){
          if(base[j] == find[i] && f[j] == 0){
               flag = 1;
-              f[j] = 1;
+              f[j] = 1; //处理查找两个相同的值的情况，必须将查找到的做个标记
      //         printf("finded ;find[%d] = %d,\n",i,find[i]);
               break;
          }else{
@@ -43,15 +44,16 @@ int is_search(int base[],int len1,int find[],int len2){
          j++;
       }
       if(flag  == 0) break;
-     i++;
-     j = 0;
+      i++;
+      j = 0;
     }
     free(f);
     f = NULL;
-    if(is_A != 0){
-       find[is_A] = 14;
+    if(is_A == 1){
+       find[loc_A] = 14;
        is_A = 0;
     }
+    
     if(flag == 1)return 1;
     else return 0;
     
