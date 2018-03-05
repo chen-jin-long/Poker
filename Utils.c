@@ -1,5 +1,9 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include "poker.h"
+void print_array(int poker[],int len);
+void print_Array(const char * name,int poker[],int len);
 
 int is_find(int base[],int len,int value){
     int i=0;
@@ -159,7 +163,7 @@ int is_flush(int pub[],int len1,int priv[],int len2,int * max_poker){
 
 int get_max_constant_num(int pub[],int pub_len,int flag[],int flag_len,int *max){
   int find = 0,i;
-  if(pub_len < flag_len)return max;
+  if(pub_len < flag_len)return -1;
   print_array(flag,flag_len);
   for(i = flag_len-1;i >= 0;i--){
     if(flag[i] == 0){

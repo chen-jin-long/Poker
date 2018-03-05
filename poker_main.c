@@ -1,6 +1,7 @@
 #include<stdio.h>
 #include<stdlib.h>
 #include "poker.h"
+#include "Utils.h"
 
 int main(){
   //Person p1 = { 10,{{2,'s'},{3,'s'}} };

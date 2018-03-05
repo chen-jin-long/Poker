@@ -1,7 +1,14 @@
 #ifndef _POKER_POKER_
 #define _POKER_POKER_
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include<stdio.h>
 #include "poker_type.h"
+//#include "Utils.h"
+
 #define PRIV_LEN 2
 #define PUB_LEN  5
 
@@ -26,6 +33,7 @@ int is_four_poker(Person person,Game *game);
 int is_three_poker(Person person,Game *game);
 int is_have_constant(int flag[],int value,int nums,int end,int *loc);
 int fast_poker_algo(Person person,Game *game);
+int is_combine_straight(int pub[],int len1,int priv[],int len2,int *max_poker);
 #define __POKER_DEBUG__
 #ifdef __POKER_DEBUG__
   #define LOG_DEBUG(format,...) \
@@ -34,6 +42,10 @@ int fast_poker_algo(Person person,Game *game);
    }while(0)
 #else
   #define LOG_DEBUG(TAG,...)
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif
