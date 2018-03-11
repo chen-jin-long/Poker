@@ -251,7 +251,7 @@ int is_four_poker(Person person,Game *game){
      int find_priv_zero[3]= {priv_value[0],priv_value[0],priv_value[0]};
      if(priv_value[0] == 1){
         for(i = 0;i<3;i++){
-           find_priv_one[i] = priv_value[0];
+           find_priv_one[i] = priv_value[0];//1, you must find 1 first
            find_priv_zero[i]= priv_value[1];
         }
      }

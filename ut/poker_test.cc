@@ -37,10 +37,43 @@ class PokerTest : public testing::Test {
 };
  
   TEST_F(PokerTest,is_combine_straight_test){
-     int pub[5] = {1,2,3,4,5};
-     int priv[2] = {1,2};
-     int max = 0;
+     int pub[5] = {9,10,11,12,13};
+     int priv[2] = {8,9};
+     int max = 0,i = 0;
+     for(i = 1;i < 5;i++){
+       priv[1] = 8 + i; 
+       EXPECT_EQ(1,is_combine_straight(pub,5,priv,2,&max));
+       EXPECT_EQ(12,max);
+     }
+
+     //7,8,9,10,11
+     priv[0] = 7;
+     priv[1] = 8;
      EXPECT_EQ(1,is_combine_straight(pub,5,priv,2,&max));
+     EXPECT_EQ(11,max);
+
+     //test 10,11,12,13,1
+     priv[0] = 1;
+     for(i = 0;i < 4;i++){
+       priv[1] = 10 + i;
+       EXPECT_EQ(1,is_combine_straight(pub,5,priv,2,&max));
+       EXPECT_EQ(14,max);
+     }
+  }
+  
+  TEST_F(PokerTest,is_four_poker) {
+
+    Poker max_chance[5] = {{0,'s'},{0,'s'},{0,'s'},{0,'s'},{0,'s'}};
+    Person p1 = { 0,{{9,'s'},{10,'s'}} ,&max_chance};
+    Poker pub[5] = { {9,'s'},{9,'s'},{9,'s'},{10,'s'},{10,'s'} };
+    Game game = {{p1,p1},&pub};
+    EXPECT_EQ(POKER_TYPE_FOUR,is_four_poker(p1,&game));
+    int i = 0;
+    for(i = 0;i < 4;i++){
+      //EXPECT_EQ(9,(*(p1.best_chance))[i].value);
+      EXPECT_EQ(9,(*p1.best_chance)[i].value);
+    }
+      EXPECT_EQ(10,(*p1.best_chance)[4].value);
   }
 
   TEST_F(PokerTest,DefaultConstructor) {
