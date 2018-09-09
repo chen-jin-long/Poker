@@ -1,51 +1,48 @@
 #include<stdio.h>
+#include<stdlib.h>
+#include<string.h>
 #include<time.h>
 #include "Utils.h"
 #include "poker.h"
-typedef int (* SEND)(FILE *fp,int rounds);
-#define ONE_POKER 7
+#include "poker_send.h"
 
-int store_poker_file(FILE *fp,int poker[],char color[]){
-  int k;
-  for(k = 0;k < 7;k++){
-    if(k == 7-1){
-      //printf("%d:%c",poker[k],color[k]);
-      fprintf(fp,"%d:%c",poker[k],color[k]);
-    }else{
-      //printf("%d:%c,",poker[k],color[k]);
-      fprintf(fp,"%d:%c,",poker[k],color[k]);
-    }
-  }
- // printf(";0#\n");
-  fprintf(fp,";0#\n");
-}
 
-int trans_poker_and_color(int flag[],int poker[],char color[]){
-  int temp_poker[7] = {0};
-  //char temp_color[7] ={'s'};
-  char color_poker[4] = {'s','h','c','d'};
-  int k;
-  for(k = 0;k < 7;k++){
-   temp_poker[k] = flag[k] % 13;
-    int loc = flag[k]/13;
-    if(temp_poker[k] == 0){
-      temp_poker[k] = 13;
-      loc--;
+int trans_poker_and_color(int flag[],Poker *p){
+  int value;
+  char color[4] = {'s','h','c','d'};
+  int k,loc;
+
+  for(k = 0;k < ONE_UNIT_POKER;k++){
+    loc = (flag[k] - 1)/13; //loc 0~3
+    /*
+    loc:0 ;1 2 3 .. 13
+    loc:1 ;14 15 16 .. 26
+    loc:2 ;27 28 .. 39
+    loc:3 ;40 41 .. 52
+    loc:4 ;53 54
+    */
+    value = flag[k] - loc*13;
+    if(loc < 4)
+    {
+      (p+k)->value= value;
+      (p+k)->color = color[loc]; 
     }
-    //temp_color[k] = color_poker[loc];
-    poker[k] = temp_poker[k];
-    color[k] = color_poker[loc]; 
+    else
+    {
+        (p+k)->value = 13+value;
+        (p+k)->color = 's';
+    }
    }
 }
 
-/* just generate 1~max ,not have zero ,otherwise int flag[] don't have zeor when init*/
-void srand_num(int max,int flag[],int zero){
+/* just generate 1~max ,not have zero ,otherwise int flag[] don't have zero when init*/
+void srand_num(int max,int flag[]){
   int j,num;
-  zero = 1;
-    for(j = 0;j < 7;j++){
+  int zero = 1;
+    for(j = 0;j < max;j++){
       num = rand()%max+zero;
       while(1){
-        if(0 == is_find(flag,7,num)){
+        if(0 == is_find(flag,ONE_UNIT_POKER,num)){
           flag[j] = num;
           break;
         }else{
@@ -54,76 +51,25 @@ void srand_num(int max,int flag[],int zero){
       }
     }
 }
-int send_all_poker(int type,FILE *fp,int rounds){
-   int i,flag[7],poker[7];
-   char color[7];
-   for(i = 0;i < rounds;i++){
-     memset(flag,0,7*sizeof(int));
-     srand_num(52,flag,1);
-     trans_poker_and_color(flag,poker,color);
-     store_poker_file(fp,poker,color);
-    // memset(flag,0,7);
+
+void create_poker(Poker *p)
+{
+    int flag[ONE_UNIT_POKER];
+    srand(time(NULL));
+    memset(flag ,0,sizeof(flag));
+    srand_num(ONE_UNIT_POKER,flag);
+    trans_poker_and_color(flag,p);
+}
+
+
+Poker * get_poker()
+{
+
+   Poker *p = (Poker *)malloc(sizeof(Poker)*ONE_UNIT_POKER);
+   if(p != NULL)
+   {
+      create_poker(p);
+      return p;
    }
+   return NULL;
 }
-/*
-int find(int flag[],int len,int value){
-  int i = 0;
-  for(i = 0;i < len-1;i++){
-    if(flag[i] == value){
-      return 1;
-    }    
-  }
-   return 0;
-}
-*/
-
-int send_special_poker(FILE *fp,int rounds){
-    //int base[7] = {2,2,2,2,1,5,7};
-    //int base[7] = {2,2,2,3,3,4,4};
-    //int base[7] = {1,2,3,4,5,6,7};
-    int base[7] = {1,8,9,10,11,12,13};
-    int flag[7];
-    int poker[7];
-    char color[7];
-    memset(flag,0,7*sizeof(int));
-    memset(color,'s',7*sizeof(char));
-    int j,i;
-   for(i = 0;i < rounds;i++){
-     memset(flag,0,7*sizeof(int));
-     srand_num(7,flag,1);
-     for(j = 0;j < 7;j++){
-       poker[j] = base[flag[j]-1];
-     }
-    store_poker_file(fp,poker,color);
-   }
-}
-
-int send_poker(const char * file,SEND send){
-  FILE *fp = NULL;
-  fp = fopen(file,"a+");
-  if(fp == NULL){
-    printf("not open %s\n",file);
-    return 0;
-  }
-  int rounds = 30;
-  send(fp,rounds);
-  if(fp != NULL)fclose(fp);
-
-}
-int main(int argc,char *argv[]){
-  if(argc < 2){
-    printf("======help==========\n");
-    printf("please input ./send.out type filename,eg. ./send.out 0/1\n");
-    return 0; 
-  }
-  int type = atoi(argv[1]);
-  srand(time(NULL));
-  if(type == 0){
-    send_poker("all.txt",send_all_poker);
-  }else if(type == 1){
-    send_poker("special.txt",send_special_poker);
-  }
-  //send_poker("four.txt",send_four_poker);
-  return 0;
-}
-

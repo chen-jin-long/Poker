@@ -8,6 +8,7 @@ extern "C" {
 #include "poker.h"
 
 int is_find(int base[],int len,int value);
+int find_poker(Poker *base,Poker *find);
 int is_search(int base[],int len1,int find[],int len2);
 int  get_max_poker(int pub[],int len1,int priv[],int len2);
 int is_flush(int pub[],int len1,int priv[],int len2,int * max_poker);

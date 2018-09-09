@@ -3,12 +3,15 @@
 #include <time.h>
 #include "gtest/gtest.h"
 #include "poker.h"
+#include "Utils.h"
+#include "poker_send.h"
+
 namespace {
 using namespace std;
 class PokerTest : public testing::Test {
  protected:
   virtual void SetUp() {
-    int i;
+    int i = 0;
     for(i = 0;i < 5;i++)
       max_chance[i] = {0,'s'};
     p1 = {10,{{8,'s'},{12,'s'}},&max_chance};
@@ -21,11 +24,25 @@ class PokerTest : public testing::Test {
     game.p[0] = p1;
     game.p[1] = p2;
     game.pub = &pub;
+    char color[4] = {'s','h','c','d'};   
+    p = (Poker *)malloc(sizeof(Poker)*ONE_UNIT_POKER);
+    for(i = 0; i<ONE_UNIT_POKER-2;i++)
+    {
+      (p+i)->value = i%13 + 1;
+      (p+i)->color = color[i/13]; 
+      // 0 1 2 3 4 5 .. 12
+      //13 14 15 16....25
+    }
+    (p+ONE_UNIT_POKER-2)->value = 14;
+    (p+ONE_UNIT_POKER-2)->color = 's';
+    (p+ONE_UNIT_POKER-1)->value = 15;
+    (p+ONE_UNIT_POKER-1)->color = 's';
   }
 
   virtual void TearDown() {
     const time_t end_time = time(NULL);
     cout << "Time: " << end_time - start_time << endl;
+    if(p != NULL)free(p);
   }
 
   time_t start_time;
@@ -34,6 +51,7 @@ class PokerTest : public testing::Test {
   Person p1;
   Person p2;
   Game game;
+  Poker *p = NULL;
 };
  
   TEST_F(PokerTest,is_combine_straight_test){
@@ -78,6 +96,22 @@ class PokerTest : public testing::Test {
 
   TEST_F(PokerTest,DefaultConstructor) {
     EXPECT_EQ(10,p1.id);
+  }
+ 
+  TEST_F(PokerTest,get_poker)
+  {
+    Poker *find = NULL;
+    int i = 0;
+    find = get_poker(); 
+    if(p != NULL && find != NULL)
+    {
+      for(i = 0;i<ONE_UNIT_POKER;i++)
+      {
+        EXPECT_EQ(1,find_poker(p,find+i));
+      }
+      free(find);
+    }
+
   }
 }
 

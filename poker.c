@@ -165,6 +165,15 @@ int is_flush_poker(Person person,Game *game){
  }
 // 判断是否是同花顺子
  if(is_full_color == 1){
+    int temp_count = 0;
+    for(i = 0; i < PUB_LEN;i++)
+    {
+       
+       if(pub[i].color == person.priv[0].color){
+          values[temp_count] = pub[i].value;
+          temp_count++;
+       }
+    }
     is_straight = is_combine_straight(values,count,priv,PRIV_LEN,&max_straight);
     if(is_straight == 1){
       // 是顺子 且是 同花

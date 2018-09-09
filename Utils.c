@@ -303,5 +303,23 @@ void get_three_poker_val(int poker[],int *value){
         }
 }
 
+int find_poker(Poker *base,Poker *find)
+{
+  int i = 0;
+  if(base == NULL || find == NULL)
+  {
+     return 0;
+  }
+
+  for(i = 0;i<ONE_UNIT_POKER;i++)
+  {
+    if((find->value == (base+i)->value) && (find->color == (base+i)->color))
+    {
+       return 1;
+    }
+  }
+  return 0;
+}
+
 
 

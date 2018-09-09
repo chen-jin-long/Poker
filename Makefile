@@ -14,9 +14,10 @@ Utils.o : Utils.c
 
 poker.o : poker.c
 	$(CC) -c poker.c -I./include/
-
-libpoker.a : Utils.o poker.o
-	ar -rv libpoker.a Utils.o poker.o
+poker_send.o : poker_send.c
+	$(CC) -c poker_send.c poker.c Utils.c -I./include/ 
+libpoker.a : Utils.o poker.o poker_send.o
+	ar -rv libpoker.a Utils.o poker.o poker_send.o
 
 poker_main : $(SRCS) libpoker.a
 	$(CC) -I./include $(CFAGS) $(SRCS) libpoker.a -o $@

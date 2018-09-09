@@ -9,8 +9,8 @@ all: poker_ut
 
 .PHONY : all
 
-poker_ut : poker_test.cc libpoker.a libgtest.a
-	$(CC) $(CFLAGS)  poker_test.cc libpoker.a libgtest.a -o $@
+poker_ut : poker_test.cc ../libpoker.a libgtest.a
+	$(CC) $(CFLAGS)  poker_test.cc ../libpoker.a libgtest.a -o $@ -g
 
 clean :
 	rm poker_ut
