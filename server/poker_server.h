@@ -1,4 +1,11 @@
+#ifndef __POKER_SERVER__
+#define __POKER_SERVER__
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include<stdio.h>
+
 
 #define USER_ID_LEN 10
 typedef struct
@@ -24,7 +31,7 @@ typedef struct
 typedef struct
 {
   int command;
-  int user_id[USER_ID_LEN];
+  int user_id;
   int flag;
   int action;
   int msg;
@@ -33,7 +40,12 @@ typedef struct
 typedef struct
 {
   int command;
-  int user_id[USER_ID_LEN];
+  int user_id;
   int len;
   Poker *poker;
 }Req_Poker;
+
+#ifdef __cplusplus
+}
+#endif
+#endif
