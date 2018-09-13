@@ -1,8 +1,8 @@
 TARGET = client
 all: $(TARGET)
 $(TARGET):client.c
-	gcc $< -o $@  -lpthread
+	gcc $< -o $@  -lpthread -g
 clean:
-	rm $(target)
+	rm $(TARGET)
 
 .PHONY:all clean

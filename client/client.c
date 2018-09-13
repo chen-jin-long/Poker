@@ -92,6 +92,7 @@ void *handleRecv(void *arg)
     else
     {
       printf("recv:%s",buf);
+      //fflush(stdout);
       if(strncmp(buf,"server:close",MAX_LINE) == 0)
       {
         exit(0);

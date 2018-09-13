@@ -15,11 +15,11 @@
 #define SERV_PORT 8000
 
 #define POKER_ACTION_LOGIN 0x00000001
-#define POKER_ACTION_BET_1 0x00000002
-#define POKER_ACTION_BET_2 0x00000003
-#define POKER_ACTION_BET_3 0x00000004
-#define POKER_ACTION_FLOP  0x00000005
-#define POKER_ACTION_PRIV  0x00000006
+#define POKER_ACTION_PRIV  0x00000002
+#define POKER_ACTION_BET_1 0x00000003
+#define POKER_ACTION_BET_2 0x00000004
+#define POKER_ACTION_BET_3 0x00000005
+#define POKER_ACTION_FLOP  0x00000006
 #define POKEK_ACTION_UNKNOWN 0xffffffff
 
 #define handle_error(msg) \
@@ -35,7 +35,7 @@ int stage = 0;
 int poker_index = 0;
 POKER_ROOM proom; 
 Person person[3];
-Poker *p = NULL;
+Poker *p_global = NULL;
 
 void * handleMsg(void *arg);
 int parseRecvInfo(const char *buf,INFO *info);
@@ -44,11 +44,14 @@ int doInfoAction(Msg *msg);
 void stop(int signo);
 int findConnectedUser(int conn,ConnData *data);
 void sendMsgToAll(const char *data);
+void sendPrivPokerToAll();
+void sendPrivPoker(int conn);
 void sendMsgToUser(int conn,const char *data);
 int isAllLogin(ConnData *data);
 void *do_poker_process(void *arg);
 int findUserLoc(int conn,ConnData *data);
-char * build_priv_poker_msg(int *len);
+char * build_priv_poker_msg(int conn,int *len);
+void dumpPrivMsg(const char *msg);
 
 #define TRUE 1
 #define FALSE 0 
@@ -60,10 +63,12 @@ int main()
     socklen_t clientaddr_len;
     //char buf[MAX_LINE];
     //POKER_DESK *pdesk = NULL;
-    p = get_poker();
+    p_global = get_poker();
+    /*
     char *priv_msg = NULL;
     int msg_len = 0;
     priv_msg = build_priv_poker_msg(&msg_len);
+    */
     setupPokerRoom(&proom);
     memset(conn_data.connList,0,sizeof(conn_data.connList));
     pthread_rwlock_init(&rwlock,NULL);
@@ -144,7 +149,7 @@ void *handleMsg(void *arg)
    {
      if((len = recv(conn,buf,sizeof(buf),0)) > 0)
      {
-       printf("info: %s",buf);
+       printf("info: %s,len = %d\n",buf,len);
        printf("msg.conn: %d ,conn: %d\n",msg.conn,conn);
        parseRecvInfo(buf,&info);
        doInfoAction(&msg);
@@ -263,6 +268,7 @@ void *do_poker_process(void *arg)
     if(stage == 0)
     {
        sendMsgToAll("next stage....\n");
+       sendPrivPokerToAll();
        sleep(1);
        sendMsgToUser(conn_data.connList[0],"bet...\n");
        //curr_conn = conn_data.connList[0];
@@ -339,6 +345,31 @@ void sendMsgToUser(int conn,const char *data)
   printf("send : len = %d\n",len);
 }
 
+void sendPrivPokerToAll()
+{
+
+  for(int i=0;i < conn_data.size && i < 3;i++)
+  {
+    printf("send to %d..\n",conn_data.connList[i]);
+    sendPrivPoker(conn_data.connList[i]);
+    sleep(2);
+  }
+}
+
+void sendPrivPoker(int conn)
+{
+    char *priv_msg = NULL;
+    int len = 0;
+    priv_msg = build_priv_poker_msg(conn,&len);
+    //printf("priv_msg : %2x\n",priv_msg);
+    printf("=======len : %d =======\n",len);
+    if(priv_msg[len-1] == '\n') printf("press enter..\n");
+    dumpPrivMsg(priv_msg);
+    int num = send(conn,priv_msg,len,0);
+    printf("num = %d\n",num);
+    free(priv_msg);
+}
+
 int findConnectedUser(int conn,ConnData *data)
 {
   for(int i=0;i < data->size;i++)
@@ -380,18 +411,19 @@ int isAllLogin(ConnData *data)
 return result;
 }
 
-char * build_priv_poker_msg(int *len)
+char * build_priv_poker_msg(int conn,int *len)
 {
   Req_Poker poker = {0};
   poker.command = POKER_ACTION_PRIV;
-  poker.user_id = 123;
+  poker.user_id = conn;
   poker.len = 2;
   //Poker *p2 = (Poker *)malloc(poker.len * sizeof(Poker));
-  Poker *p2 = p + poker_index;
+  Poker *p2 = p_global + poker_index;
   poker_index += 2;
-  *len = sizeof(poker.command) + sizeof(poker.user_id) + sizeof(poker.len) + poker.len * sizeof(Poker);
+  *len = sizeof(poker.command) + sizeof(poker.user_id) + sizeof(poker.len) + poker.len * sizeof(Poker) + 1; // +1 for \0
   char * buf = (char *)malloc(*len);
-  int index = 0; 
+  //memset(buf,0,*len);
+  int index = 0, i = 0; 
   memcpy(buf,&poker.command,sizeof(poker.command));
   index += sizeof(poker.command);
   memcpy(buf+index,&poker.user_id,sizeof(poker.user_id));
@@ -400,5 +432,48 @@ char * build_priv_poker_msg(int *len)
   index += sizeof(poker.len);
   memcpy(buf+index,p2,sizeof(Poker)*poker.len);
   index += (poker.len)*sizeof(Poker);
+  for(i = 0;i< *len-1;i++)
+  {
+     if(buf[i] == 0)
+     {
+       buf[i] = '0';
+     }
+  }
+  buf[*len - 1] = '\n';
   return buf;
+}
+
+void dumpPrivMsg(const char *msg)
+{
+  Req_Poker poker = {0};
+  int index = 0;
+  int len = strlen(msg);
+  char temp[256] = {0};
+  strncpy(temp,msg,sizeof(temp)-1);
+  int i = 0;
+  for(i = 0;i < len;i++)
+  {
+    if(temp[i] == '0')
+    {
+      temp[i] = 0;
+    }
+  }
+  memcpy(&poker.command,temp,sizeof(poker.command));
+  index += sizeof(poker.command);
+  memcpy(&poker.user_id,temp+index,sizeof(poker.user_id));
+  index += sizeof(poker.user_id);
+  memcpy(&poker.len,temp+index,sizeof(poker.len));
+  index += sizeof(poker.len);
+  printf("command : %d ",poker.command);
+  printf("user_id: %d ",poker.user_id);
+  printf("len: %d \n",poker.len); 
+  Poker *p = (Poker *)malloc(poker.len);
+  if(p == NULL) return;
+  memcpy(p,temp+index,sizeof(Poker)*poker.len); 
+  for(i = 0; i < poker.len;i++)
+  {
+    printf("poker: value: %d ,color = %c\n",(p+i)->value,(p+i)->color); 
+  }
+  free(p);
+
 }
