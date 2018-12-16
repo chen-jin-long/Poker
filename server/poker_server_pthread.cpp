@@ -10,17 +10,11 @@
 #include "poker_game.h"
 #include "poker_server.h"
 #include "poker_send.h"
+#include "common.h"
 
 #define MAX_LINE 100
 #define SERV_PORT 8000
 
-#define POKER_ACTION_LOGIN 0x00000001
-#define POKER_ACTION_PRIV  0x00000002
-#define POKER_ACTION_BET_1 0x00000003
-#define POKER_ACTION_BET_2 0x00000004
-#define POKER_ACTION_BET_3 0x00000005
-#define POKER_ACTION_FLOP  0x00000006
-#define POKEK_ACTION_UNKNOWN 0xffffffff
 
 #define handle_error(msg) \
    do { perror(msg); exit(EXIT_FAILURE); } while (0)
@@ -51,7 +45,7 @@ int isAllLogin(ConnData *data);
 void *do_poker_process(void *arg);
 int findUserLoc(int conn,ConnData *data);
 char * build_priv_poker_msg(int conn,int *len);
-void dumpPrivMsg(const char *msg);
+//void dumpPrivMsg(const char *msg);
 
 #define TRUE 1
 #define FALSE 0 
@@ -361,10 +355,11 @@ void sendPrivPoker(int conn)
     char *priv_msg = NULL;
     int len = 0;
     priv_msg = build_priv_poker_msg(conn,&len);
+    printf("priv_msg : %s\n",priv_msg);
     //printf("priv_msg : %2x\n",priv_msg);
-    printf("=======len : %d =======\n",len);
-    if(priv_msg[len-1] == '\n') printf("press enter..\n");
-    dumpPrivMsg(priv_msg);
+   // printf("=======len : %d =======\n",len);
+    //if(priv_msg[len-1] == '\n') printf("press enter..\n");
+    //dumpPrivMsg(priv_msg);
     int num = send(conn,priv_msg,len,0);
     printf("num = %d\n",num);
     free(priv_msg);
@@ -438,11 +433,16 @@ char * build_priv_poker_msg(int conn,int *len)
      {
        buf[i] = '0';
      }
+     else if(1 <= buf[i] && buf[i] <= 15)
+     {
+       buf[i] += '0';
+     } 
   }
   buf[*len - 1] = '\n';
   return buf;
 }
 
+#if 0
 void dumpPrivMsg(const char *msg)
 {
   Req_Poker poker = {0};
@@ -477,3 +477,4 @@ void dumpPrivMsg(const char *msg)
   free(p);
 
 }
+#endif

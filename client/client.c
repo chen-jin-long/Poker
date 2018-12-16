@@ -6,6 +6,7 @@
 #include<string.h>
 #include<signal.h>
 #include<pthread.h>
+#include "common.h"
 
 #define MAX_LINE 100
 #define SERV_PORT 8000
@@ -19,6 +20,7 @@
 void stop(int signo);
 void *handleRecv(void *arg);
 void *handleWrite(void *arg);
+void handleMsg(const char *buf);
 
 int sockfd;
 
@@ -92,6 +94,7 @@ void *handleRecv(void *arg)
     else
     {
       printf("recv:%s",buf);
+      handleMsg(buf);
       //fflush(stdout);
       if(strncmp(buf,"server:close",MAX_LINE) == 0)
       {
@@ -105,6 +108,36 @@ void *handleRecv(void *arg)
 
 void handleMsg(const char *buf)
 {
+ int len = strlen(buf);
+ int i = 0;
+ if(len < sizeof(int) || len > 64)
+ {
+    printf("buf len < 4 or > 64, len is %d\n",len);
+    return;
+ }
+ char *temp = (char *)malloc(len);
+ if(temp == NULL)
+ {
+   printf("malloc failed.\n");
+   return;
+ }
+ memset(temp,0,sizeof(temp));
+ strncpy(temp,buf,len);
+ for(i = 0;i< len ;i++)
+ {
+   if(temp[i] == '0')
+   {
+     temp[i] = 0;
+   }
 
+ }
+ char val[4] = {0};
+ strncpy(val,temp,sizeof(int));
+ int command = (int)val;
+ printf("command: %d\n",command);
+ if(command == POKER_ACTION_PRIV)
+ {
+     dumpPrivMsg(temp);
+ }  
 
 }

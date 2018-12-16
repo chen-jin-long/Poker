@@ -5,7 +5,7 @@ extern "C" {
 #endif
 
 #include<stdio.h>
-
+#include "common.h"
 
 #define USER_ID_LEN 10
 typedef struct
@@ -28,6 +28,8 @@ typedef struct
   int size;
 }ConnData;
 
+
+#if 0
 typedef struct
 {
   int command;
@@ -44,6 +46,8 @@ typedef struct
   int len;
   Poker *poker;
 }Req_Poker;
+
+#endif
 
 #ifdef __cplusplus
 }
