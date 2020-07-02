@@ -93,7 +93,7 @@ void *handleRecv(void *arg)
     }
     else
     {
-      printf("recv:%s",buf);
+      printf("recv:%s\n",buf);
       handleMsg(buf);
       //fflush(stdout);
       if(strncmp(buf,"server:close",MAX_LINE) == 0)
@@ -131,9 +131,9 @@ void handleMsg(const char *buf)
    }
 
  }
- char val[4] = {0};
+ char val[5] = {0};
  strncpy(val,temp,sizeof(int));
- int command = (int)val;
+ int command = atoi(val);
  printf("command: %d\n",command);
  if(command == POKER_ACTION_PRIV)
  {

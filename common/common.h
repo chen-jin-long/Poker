@@ -32,9 +32,17 @@ typedef struct
   Poker *poker;
 }Req_Poker;
 
+typedef enum
+{
+  POKER_OK = 0,
+  POKER_PARAM_NULL_ERROR,
+  POKER_ARRAY_OVERLOAD_ERROR,
+  POKER_MALLOC_FAILED,
+
+}POKER_RETURE_PARAM;
 
 void dumpPrivMsg(const char *msg);
-
+POKER_RETURE_PARAM get_poker(Poker *poker,char *out);
 #ifdef __cplusplus
 }
 #endif

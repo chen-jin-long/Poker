@@ -26,7 +26,7 @@ ConnData conn_data;
 pthread_rwlock_t rwlock;
 int listenfd;
 int stage = 0;
-int poker_index = 0;
+int g_poker_index = 0;
 POKER_ROOM proom; 
 Person person[3];
 Poker *p_global = NULL;
@@ -57,7 +57,7 @@ int main()
     socklen_t clientaddr_len;
     //char buf[MAX_LINE];
     //POKER_DESK *pdesk = NULL;
-    p_global = get_poker();
+    p_global = wash_poker();
     /*
     char *priv_msg = NULL;
     int msg_len = 0;
@@ -413,12 +413,21 @@ char * build_priv_poker_msg(int conn,int *len)
   poker.user_id = conn;
   poker.len = 2;
   //Poker *p2 = (Poker *)malloc(poker.len * sizeof(Poker));
-  Poker *p2 = p_global + poker_index;
-  poker_index += 2;
+  Poker *p2 = p_global + g_poker_index;
+
   *len = sizeof(poker.command) + sizeof(poker.user_id) + sizeof(poker.len) + poker.len * sizeof(Poker) + 1; // +1 for \0
   char * buf = (char *)malloc(*len);
-  //memset(buf,0,*len);
-  int index = 0, i = 0; 
+  memset(buf,0,*len);
+  int index = 0, i = 0;
+  snprintf(buf,*len,"%04d%04d%04d",poker.command,poker.user_id,poker.len);
+  index += 12;
+  get_poker(p2,buf+index);
+  index += 3;
+  g_poker_index++;
+  get_poker(p2+g_poker_index,buf+index);
+  index += 3;
+  g_poker_index++;
+  /* 
   memcpy(buf,&poker.command,sizeof(poker.command));
   index += sizeof(poker.command);
   memcpy(buf+index,&poker.user_id,sizeof(poker.user_id));
@@ -438,6 +447,7 @@ char * build_priv_poker_msg(int conn,int *len)
        buf[i] += '0';
      } 
   }
+  */
   buf[*len - 1] = '\n';
   return buf;
 }

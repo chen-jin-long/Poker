@@ -37,3 +37,13 @@ void dumpPrivMsg(const char *msg)
   free(p);
 
 }
+POKER_RETURE_PARAM get_poker(Poker *poker,char *out)
+{
+   if(poker == NULL || out == NULL)
+   {
+       return POKER_PARAM_NULL_ERROR;
+   }
+   snprintf(out,4,"%02d%c",poker->value,poker->color);
+   return POKER_OK;
+
+}

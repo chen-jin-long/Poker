@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-Poker * get_poker();
+Poker * wash_poker();
 
 #ifdef __cplusplus
 }

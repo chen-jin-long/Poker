@@ -5,6 +5,7 @@
 #include "poker.h"
 #include "Utils.h"
 #include "poker_send.h"
+#include "common.h"
 
 namespace {
 using namespace std;
@@ -98,11 +99,11 @@ class PokerTest : public testing::Test {
     EXPECT_EQ(10,p1.id);
   }
  
-  TEST_F(PokerTest,get_poker)
+  TEST_F(PokerTest,wash_poker)
   {
     Poker *find = NULL;
     int i = 0;
-    find = get_poker(); 
+    find = wash_poker(); 
     if(p != NULL && find != NULL)
     {
       for(i = 0;i<ONE_UNIT_POKER;i++)
@@ -113,6 +114,19 @@ class PokerTest : public testing::Test {
     }
 
   }
+  
+  TEST_F(PokerTest,get_poker)
+  {
+    Poker poker = {20,'a'};
+    char buf[4] = {0};
+    get_poker(&poker,buf);
+    EXPECT_STREQ(buf,"20a");
+    memset(buf,0,sizeof(buf));
+    Poker poker2 = {1,'b'};
+    get_poker(&poker2,buf);
+    EXPECT_STREQ(buf,"01b");
+  }
+  
 }
 
 int main(int argc,char *argv[]){

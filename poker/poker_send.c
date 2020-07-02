@@ -62,7 +62,7 @@ void create_poker(Poker *p)
 }
 
 
-Poker * get_poker()
+Poker * wash_poker()
 {
 
    Poker *p = (Poker *)malloc(sizeof(Poker)*ONE_UNIT_POKER);
@@ -73,3 +73,4 @@ Poker * get_poker()
    }
    return NULL;
 }
+
