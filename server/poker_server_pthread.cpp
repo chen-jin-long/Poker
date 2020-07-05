@@ -25,7 +25,7 @@ char status[3] = {0};
 ConnData conn_data;
 pthread_rwlock_t rwlock;
 int listenfd;
-int stage = 0;
+int g_stage = POKER_STAGE_LOGIN;
 int g_poker_index = 0;
 POKER_ROOM proom; 
 Person person[3];
@@ -170,7 +170,7 @@ int parseRecvInfo(const char *buf,INFO *info)
 
 int doInfoAction(Msg *msg)
 {
-  if(msg->info->type == POKER_ACTION_LOGIN && stage == 0)
+  if(msg->info->type == POKER_ACTION_LOGIN && g_stage == POKER_STAGE_LOGIN)
   {
     
    if(findConnectedUser(msg->conn,&conn_data) == FALSE)
@@ -180,7 +180,7 @@ int doInfoAction(Msg *msg)
      printf("retry login for connectid: %d\n",msg->conn);
    }
   } 
-  else if(stage == 1)
+  else if(g_stage == POKER_STAGE_BET)
   {
     if(msg->info->type == POKER_ACTION_BET_1)
     {
@@ -200,7 +200,7 @@ int doInfoAction(Msg *msg)
     }
 
   }
-  else if(stage == 2)
+  else if(g_stage == POKER_STAGE_FLOP)
   {
        if(msg->info->type == POKER_ACTION_FLOP)
        {
@@ -238,7 +238,7 @@ void login_process(int conn)
   if(isAllLogin(&conn_data) == TRUE)
   {
     printf("all users login success...\n");
-    //stage = 1;
+    //g_stage = 1;
     pthread_t ptd = -1;
      
     if(pthread_create(&ptd,NULL,do_poker_process,NULL) < -1)
@@ -259,7 +259,7 @@ void *do_poker_process(void *arg)
   int cur_conn = -1;
   for(;;)
   {
-    if(stage == 0)
+    if(g_stage == POKER_STAGE_LOGIN)
     {
        sendMsgToAll("next stage....\n");
        sendPrivPokerToAll();
@@ -267,9 +267,9 @@ void *do_poker_process(void *arg)
        sendMsgToUser(conn_data.connList[0],"bet...\n");
        //curr_conn = conn_data.connList[0];
        cur_conn = 0;
-       stage = 1;
+       g_stage = POKER_STAGE_BET;
     }
-    else if(stage == 1)
+    else if(g_stage == POKER_STAGE_BET)
     {
 
        if(status[cur_conn] == 'b')
@@ -283,7 +283,7 @@ void *do_poker_process(void *arg)
          }
          else
          {
-            stage = 2;
+            g_stage = POKER_STAGE_FLOP;
             sendMsgToAll("next stage 222....\n");
             sleep(1);
             sendMsgToUser(conn_data.connList[0],"bet 2...\n");
@@ -293,18 +293,18 @@ void *do_poker_process(void *arg)
        }
 
     }
-    else if(stage == 2)
+    else if(g_stage == POKER_STAGE_FLOP)
     {
         if(status[cur_conn] == 'c')
         {
-	  cur_conn++;
+	        cur_conn++;
           if(cur_conn < conn_data.size)
           {
               sendMsgToUser(conn_data.connList[cur_conn],"flop..\n");
           }
           else
           {
-             stage = 3;
+             g_stage = POKER_STAGE_TURN;
              cur_conn = 0;
           }
         }
@@ -341,8 +341,8 @@ void sendMsgToUser(int conn,const char *data)
 
 void sendPrivPokerToAll()
 {
-
-  for(int i=0;i < conn_data.size && i < 3;i++)
+  int i = 0;
+  for(i = 0;i < conn_data.size && i < 3;i++)
   {
     printf("send to %d..\n",conn_data.connList[i]);
     sendPrivPoker(conn_data.connList[i]);
