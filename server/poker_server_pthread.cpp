@@ -418,7 +418,7 @@ char * build_priv_poker_msg(int conn,int *len)
   *len = sizeof(poker.command) + sizeof(poker.user_id) + sizeof(poker.len) + poker.len * sizeof(Poker) + 1; // +1 for \0
   char * buf = (char *)malloc(*len);
   memset(buf,0,*len);
-  int index = 0, i = 0;
+  int index = 0;
   snprintf(buf,*len,"%04d%04d%04d",poker.command,poker.user_id,poker.len);
   index += 12;
   get_poker(p2,buf+index);
