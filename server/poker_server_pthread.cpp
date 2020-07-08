@@ -122,6 +122,8 @@ int main()
   return 0;
 }
 
+unsigned int g_money = 100;
+
 void *handleMsg(void *arg)
 {
    printf("handleMsg...\n");
@@ -139,6 +141,7 @@ void *handleMsg(void *arg)
    Msg msg;
    msg.conn = conn;
    msg.info = &info;
+
    for(;;)
    {
      if((len = recv(conn,buf,sizeof(buf),0)) > 0)
@@ -164,6 +167,7 @@ int parseRecvInfo(const char *buf,INFO *info)
   memset(temp,0,sizeof(temp));
   strncpy(temp,buf+sizeof(info->size),sizeof(info->size));
   info->size = atoi(temp);
+  memset(info->value, 0 ,sizeof(info->size));
   strncpy(info->value,buf+sizeof(info->type)+sizeof(info->size),sizeof(info->value));
   return 0;
 }
@@ -190,6 +194,7 @@ int doInfoAction(Msg *msg)
        {
           printf("loc = %d\n",loc);
           status[loc] = 'b';
+          g_money = (unsigned int)atoi(msg->info->value);
        }
        else
        {
@@ -257,6 +262,7 @@ void login_process(int conn)
 void *do_poker_process(void *arg)
 {
   int cur_conn = -1;
+  char info[256] = {0};
   for(;;)
   {
     if(g_stage == POKER_STAGE_LOGIN)
@@ -264,7 +270,9 @@ void *do_poker_process(void *arg)
        sendMsgToAll("next stage....\n");
        sendPrivPokerToAll();
        sleep(1);
-       sendMsgToUser(conn_data.connList[0],"bet...\n");
+       snprintf(info, sizeof(info), "bet:gmoney=%d\n", g_money);
+       sendMsgToUser(conn_data.connList[0],info);
+       memset(info, 0, sizeof(info));
        //curr_conn = conn_data.connList[0];
        cur_conn = 0;
        g_stage = POKER_STAGE_BET;
@@ -279,7 +287,9 @@ void *do_poker_process(void *arg)
          if(cur_conn < conn_data.size)
          {
            //cur_conn++;
-           sendMsgToUser(conn_data.connList[cur_conn],"bet...\n");
+           snprintf(info, sizeof(info),"bet:g_money=%d\n",g_money);
+           sendMsgToUser(conn_data.connList[cur_conn], info);
+           memset(info, 0, sizeof(info));
          }
          else
          {
