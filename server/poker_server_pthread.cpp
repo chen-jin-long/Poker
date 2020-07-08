@@ -270,9 +270,10 @@ void *do_poker_process(void *arg)
        sendMsgToAll("next stage....\n");
        sendPrivPokerToAll();
        sleep(1);
-       snprintf(info, sizeof(info), "bet:gmoney=%d\n", g_money);
-       sendMsgToUser(conn_data.connList[0],info);
+       snprintf(info, sizeof(info), "[bet]gmoney=%d\n", g_money);
+       sendMsgToAll(info);
        memset(info, 0, sizeof(info));
+       sendMsgToUser(conn_data.connList[0],"please bet..\n");
        //curr_conn = conn_data.connList[0];
        cur_conn = 0;
        g_stage = POKER_STAGE_BET;
@@ -287,8 +288,9 @@ void *do_poker_process(void *arg)
          if(cur_conn < conn_data.size)
          {
            //cur_conn++;
-           snprintf(info, sizeof(info),"bet:g_money=%d\n",g_money);
-           sendMsgToUser(conn_data.connList[cur_conn], info);
+           snprintf(info, sizeof(info),"[bet]:g_money=%d\n",g_money);
+           sendMsgToAll(info);
+           sendMsgToUser(conn_data.connList[cur_conn], "please bet...\n");
            memset(info, 0, sizeof(info));
          }
          else
