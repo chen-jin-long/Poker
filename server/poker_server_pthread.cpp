@@ -21,15 +21,22 @@
 
 //pthread_key_t key; // private data for pthread
 
-char status[3] = {0};
-ConnData conn_data;
+char status[MAX_DESK_PLAYER] = {0};
+ConnData g_conn_data;
 pthread_rwlock_t rwlock;
 int listenfd;
 int g_stage = POKER_STAGE_LOGIN;
 int g_poker_index = 0;
-POKER_ROOM proom; 
-Person person[3];
+POKER_ROOM proom[MAX_POKER_ROOM]; 
+Person person[MAX_DESK_PLAYER];
 Poker *p_global = NULL;
+Poker g_game_pub[PUB_LEN];
+
+char *g_flop_msg = NULL;
+char *g_turn_msg = NULL;
+char *g_river_msg = NULL;
+
+typedef char * (* BUILD_POKER_MSG)(int conn,int *len);
 
 void * handleMsg(void *arg);
 int parseRecvInfo(const char *buf,INFO *info);
@@ -45,8 +52,12 @@ int isAllLogin(ConnData *data);
 void *do_poker_process(void *arg);
 int findUserLoc(int conn,ConnData *data);
 char * build_priv_poker_msg(int conn,int *len);
+char * build_flop_poker_msg(int conn,int *len);
+char * build_turn_poker_msg(int conn,int *len);
+char * build_river_poker_msg(int conn,int *len);
 //void dumpPrivMsg(const char *msg);
-
+void sendPokerMsgToUser(int conn, BUILD_POKER_MSG poker_msg);
+void sendPokerMsgToAll(int action);
 #define TRUE 1
 #define FALSE 0 
 
@@ -63,8 +74,9 @@ int main()
     int msg_len = 0;
     priv_msg = build_priv_poker_msg(&msg_len);
     */
-    setupPokerRoom(&proom);
-    memset(conn_data.connList,0,sizeof(conn_data.connList));
+    setupPokerRoom(proom);
+    InitGamePubPoker(proom->pdesk[0]->game, &g_game_pub);
+    memset(g_conn_data.connList,0,sizeof(g_conn_data.connList));
     pthread_rwlock_init(&rwlock,NULL);
 
     listenfd = socket(AF_INET,SOCK_STREAM,0);
@@ -87,10 +99,10 @@ int main()
     while(1){
       clientaddr_len = sizeof(client);
       connectfd = accept(listenfd,(struct sockaddr *)&client,&clientaddr_len);
-      if(conn_data.size < 3)
+      if(g_conn_data.size < MAX_DESK_PLAYER)
       {
-        //conn_data.connList[conn_data.size] = connectfd;
-        conn_data.size ++;
+        //g_conn_data.connList[g_conn_data.size] = connectfd;
+        g_conn_data.size ++;
       }
 
       if(connectfd < 0){
@@ -122,8 +134,13 @@ int main()
   return 0;
 }
 
-unsigned int g_money = 100;
+//unsigned int g_money = 100;
 
+void updateBetMoney(unsigned int money) {
+  if (money >=  proom[0].pdesk[0]->betMoney) {
+    proom[0].pdesk[0]->betMoney = money;
+  }
+}
 void *handleMsg(void *arg)
 {
    printf("handleMsg...\n");
@@ -163,7 +180,7 @@ int parseRecvInfo(const char *buf,INFO *info)
   char temp[5] = {0};
   strncpy(temp,buf,sizeof(info->type));
   info->type = atoi(temp);   
-  printf("type: %d\n",info->type);
+  printf("[%s] type: %d\n", __FUNCTION__, info->type);
   memset(temp,0,sizeof(temp));
   strncpy(temp,buf+sizeof(info->size),sizeof(info->size));
   info->size = atoi(temp);
@@ -174,10 +191,11 @@ int parseRecvInfo(const char *buf,INFO *info)
 
 int doInfoAction(Msg *msg)
 {
+  unsigned int money = (unsigned int)atoi(msg->info->value);
   if(msg->info->type == POKER_ACTION_LOGIN && g_stage == POKER_STAGE_LOGIN)
   {
     
-   if(findConnectedUser(msg->conn,&conn_data) == FALSE)
+   if(findConnectedUser(msg->conn,&g_conn_data) == FALSE)
    {
      login_process(msg->conn);
    }else{
@@ -189,17 +207,17 @@ int doInfoAction(Msg *msg)
     if(msg->info->type == POKER_ACTION_BET_1)
     {
        printf("POKER_ACTION_BET_1\n");
-       int loc = findUserLoc(msg->conn,&conn_data);
+       int loc = findUserLoc(msg->conn,&g_conn_data);
        if(loc != -1)
        {
           printf("loc = %d\n",loc);
           status[loc] = 'b';
-          g_money = (unsigned int)atoi(msg->info->value);
+          //g_money = (unsigned int)atoi(msg->info->value);
+          updateBetMoney(money);
        }
        else
        {
            printf("error to findUserLoc..\n");
-
        }
 
     }
@@ -210,16 +228,46 @@ int doInfoAction(Msg *msg)
        if(msg->info->type == POKER_ACTION_FLOP)
        {
          printf("POKER_ACTION_FLOP\n");
-         int loc = findUserLoc(msg->conn,&conn_data);
+         int loc = findUserLoc(msg->conn,&g_conn_data);
          if(loc != -1)
          {
             printf("loc = %d\n",loc);
             status[loc] = 'c';
+            updateBetMoney(money);
          }
-
        }
   }
-
+  else if(g_stage == POKER_STAGE_TURN)
+  {
+       if(msg->info->type == POKER_ACTION_TURN)
+       {
+         printf("POKER_ACTION_TURN\n");
+         int loc = findUserLoc(msg->conn,&g_conn_data);
+         if(loc != -1)
+         {
+            printf("loc = %d\n",loc);
+            status[loc] = 'd';
+            updateBetMoney(money);
+         }
+       }
+  }
+  else if(g_stage == POKER_STAGE_RIVER)
+  {
+    if(msg->info->type == POKER_ACTION_RIVER)
+    {
+      printf("POKER_ACTION_RIVER\n");
+      int loc = findUserLoc(msg->conn,&g_conn_data);
+      if(loc != -1)
+      {
+        printf("loc = %d\n",loc);
+        status[loc] = 'e';
+        updateBetMoney(money);
+      }
+    }
+  } else {
+    printf("err stage[%d]\n", g_stage);
+    return -1;
+  }
   return 0;
 }
 
@@ -227,20 +275,20 @@ void login_process(int conn)
 {
   printf("login_process..\n");
   pthread_rwlock_rdlock(&rwlock);
-  for(int i = 0;i < 3;i++)
+  for(int i = 0;i < MAX_DESK_PLAYER;i++)
   {
-    if(status[i] != 'l')
+    if(status[i] != 'a')
     {
       pthread_rwlock_unlock(&rwlock);
       pthread_rwlock_wrlock(&rwlock);
-      status[i] = 'l';
-      conn_data.connList[i] = conn;
+      status[i] = 'a';
+      g_conn_data.connList[i] = conn;
      // pthread_rwlock_unlock(&rwlock);
       break;
     }
   }
 
-  if(isAllLogin(&conn_data) == TRUE)
+  if(isAllLogin(&g_conn_data) == TRUE)
   {
     printf("all users login success...\n");
     //g_stage = 1;
@@ -252,7 +300,7 @@ void login_process(int conn)
     }
     //sendMsgToAll("next stage....\n");
     //sleep(3);
-    //sendMsgToUser(conn_data.connList[0],"bet...");
+    //sendMsgToUser(g_conn_data.connList[0],"bet...");
   }
 
  pthread_rwlock_unlock(&rwlock);
@@ -261,20 +309,21 @@ void login_process(int conn)
 
 void *do_poker_process(void *arg)
 {
-  int cur_conn = -1;
+  int cur_conn = 0;
   char info[256] = {0};
   for(;;)
   {
     if(g_stage == POKER_STAGE_LOGIN)
     {
        sendMsgToAll("next stage....\n");
-       sendPrivPokerToAll();
+       //sendPrivPokerToAll();
+       sendPokerMsgToAll(POKER_ACTION_PRIV);
        sleep(1);
-       snprintf(info, sizeof(info), "[bet]gmoney=%d\n", g_money);
+       snprintf(info, sizeof(info), "[bet]gmoney=%d\n", proom[0].pdesk[0]->betMoney);
        sendMsgToAll(info);
        memset(info, 0, sizeof(info));
-       sendMsgToUser(conn_data.connList[0],"please bet..\n");
-       //curr_conn = conn_data.connList[0];
+       sendMsgToUser(g_conn_data.connList[0],"please bet..\n");
+       //curr_conn = g_conn_data.connList[0];
        cur_conn = 0;
        g_stage = POKER_STAGE_BET;
     }
@@ -283,22 +332,25 @@ void *do_poker_process(void *arg)
 
        if(status[cur_conn] == 'b')
        {
-         printf("enter send ...\n");
+         printf("enter send status = 'b'...\n");
          cur_conn++;
-         if(cur_conn < conn_data.size)
+         if(cur_conn < g_conn_data.size)
          {
-           //cur_conn++;
-           snprintf(info, sizeof(info),"[bet]:g_money=%d\n",g_money);
+           snprintf(info, sizeof(info),"[bet]:g_money=%d\n", proom[0].pdesk[0]->betMoney);
            sendMsgToAll(info);
-           sendMsgToUser(conn_data.connList[cur_conn], "please bet...\n");
+           sendMsgToUser(g_conn_data.connList[cur_conn], "please bet...\n");
            memset(info, 0, sizeof(info));
+           //cur_conn++;
          }
          else
          {
+            snprintf(info, sizeof(info),"[bet]:g_money=%d\n", proom[0].pdesk[0]->betMoney);
+            sendMsgToAll(info);
             g_stage = POKER_STAGE_FLOP;
-            sendMsgToAll("next stage 222....\n");
-            sleep(1);
-            sendMsgToUser(conn_data.connList[0],"bet 2...\n");
+            sendMsgToAll("next stage : flop....\n");
+            sleep(2);
+            sendPokerMsgToAll(POKER_ACTION_FLOP);
+            sendMsgToUser(g_conn_data.connList[0],"bet for flop...\n");
             cur_conn = 0;
          }
          
@@ -309,14 +361,67 @@ void *do_poker_process(void *arg)
     {
         if(status[cur_conn] == 'c')
         {
+            cur_conn++;
+            if(cur_conn < g_conn_data.size)
+            {
+              snprintf(info, sizeof(info),"[bet]:g_money=%d\n", proom[0].pdesk[0]->betMoney);
+              sendMsgToAll(info);
+              sendMsgToUser(g_conn_data.connList[cur_conn], "please bet for flop ...\n");
+              memset(info, 0, sizeof(info));
+              //cur_conn++;
+            }
+            else
+            {
+                snprintf(info, sizeof(info),"[bet]:g_money=%d\n", proom[0].pdesk[0]->betMoney);
+                sendMsgToAll(info);
+                g_stage = POKER_STAGE_TURN;
+                sendMsgToAll("next stage : turn....\n");
+                sleep(2);
+                sendPokerMsgToAll(POKER_ACTION_TURN);
+                sendMsgToUser(g_conn_data.connList[0],"bet for turn...\n");
+                cur_conn = 0;
+            }
+        }
+    }
+    else if(g_stage == POKER_STAGE_TURN)
+    {
+        if(status[cur_conn] == 'd')
+        {
+            cur_conn++;
+            if(cur_conn < g_conn_data.size)
+            {
+              snprintf(info, sizeof(info),"[bet]:g_money=%d\n", proom[0].pdesk[0]->betMoney);
+              sendMsgToAll(info);
+              sendMsgToUser(g_conn_data.connList[cur_conn], "please bet for turn ...\n");
+              memset(info, 0, sizeof(info));
+              //cur_conn++;
+            }
+            else
+            {
+                snprintf(info, sizeof(info),"[bet]:g_money=%d\n", proom[0].pdesk[0]->betMoney);
+                sendMsgToAll(info);
+                g_stage = POKER_STAGE_TURN;
+                sendMsgToAll("next stage : river....\n");
+                sleep(2);
+                sendPokerMsgToAll(POKER_ACTION_RIVER);
+                sendMsgToUser(g_conn_data.connList[0],"bet for river...\n");
+                cur_conn = 0;
+            }
+        }
+    }
+    else if(g_stage == POKER_STAGE_RIVER)
+    {
+        if(status[cur_conn] == 'e')
+        {
 	        cur_conn++;
-          if(cur_conn < conn_data.size)
+          sendPokerMsgToAll(POKER_ACTION_RIVER);
+          if(cur_conn < g_conn_data.size)
           {
-              sendMsgToUser(conn_data.connList[cur_conn],"flop..\n");
+              sendMsgToUser(g_conn_data.connList[cur_conn],"river..\n");
           }
           else
           {
-             g_stage = POKER_STAGE_TURN;
+             g_stage = POKER_STAGE_OVER;
              cur_conn = 0;
           }
         }
@@ -330,16 +435,29 @@ void stop(int signo)
   printf("stop...\n");
   sendMsgToAll("server:close");
   close(listenfd);
+  if (g_flop_msg) {
+    free(g_flop_msg);
+    g_flop_msg = NULL;
+  }
+  if (g_turn_msg) {
+    free(g_turn_msg);
+    g_turn_msg = NULL;
+  }
+  if (g_river_msg) {
+    free(g_river_msg);
+    g_river_msg = NULL;
+  }
   pthread_rwlock_destroy(&rwlock);
   exit(0);
 }
 
 void sendMsgToAll(const char *data)
 {
-  for(int i=0;i < conn_data.size && i < 3;i++)
-  {
-    printf("send to %d..\n",conn_data.connList[i]);
-    send(conn_data.connList[i],data,strlen(data),0);
+  int i = 0;
+  for(i = 0; i < g_conn_data.size && i < MAX_DESK_PLAYER; i++)
+  { 
+    printf("send to %d, msg=%s\n",g_conn_data.connList[i], data);
+    send(g_conn_data.connList[i],data,strlen(data),0);
   }
 
 }
@@ -354,13 +472,38 @@ void sendMsgToUser(int conn,const char *data)
 void sendPrivPokerToAll()
 {
   int i = 0;
-  for(i = 0;i < conn_data.size && i < 3;i++)
+  for(i = 0;i < g_conn_data.size && i < MAX_DESK_PLAYER;i++)
   {
-    printf("send to %d..\n",conn_data.connList[i]);
-    sendPrivPoker(conn_data.connList[i]);
+    printf("send to %d..\n",g_conn_data.connList[i]);
+    sendPrivPoker(g_conn_data.connList[i]);
     sleep(2);
   }
 }
+
+BUILD_POKER_MSG getPokerMsgByType(int action)
+{
+  BUILD_POKER_MSG msg = NULL;
+  switch (action)
+  {
+    case POKER_ACTION_PRIV:
+      msg = build_priv_poker_msg;
+      break;
+    case POKER_ACTION_FLOP:
+      msg = build_flop_poker_msg;
+      break;
+    case POKER_ACTION_TURN:
+      msg = build_turn_poker_msg;
+      break;
+    case POKER_ACTION_RIVER:
+      msg = build_river_poker_msg;
+      break;
+    default:
+      msg = NULL;
+      break;
+  }
+  return msg;
+}
+
 
 void sendPrivPoker(int conn)
 {
@@ -375,6 +518,37 @@ void sendPrivPoker(int conn)
     int num = send(conn,priv_msg,len,0);
     printf("num = %d\n",num);
     free(priv_msg);
+}
+
+void sendPokerMsgToUser(int conn, int action)
+{
+    char *msg = NULL;
+    int len = 0;
+    BUILD_POKER_MSG poker_msg = getPokerMsgByType(action);
+    if (poker_msg == NULL) {
+      printf("action[%d] can not get method..\n", action);
+      return;
+    }
+    msg = poker_msg(conn,&len);
+    printf("[poker msg] : %s\n",msg); 
+    int num = send(conn, msg,strlen(msg),0);
+    printf("num = %d\n",num);
+    if (action == POKER_ACTION_PRIV) {
+       free(msg);
+    }
+
+}
+
+void sendPokerMsgToAll(int action)
+{
+  int i = 0;
+  for(i = 0;i < g_conn_data.size && i < MAX_DESK_PLAYER;i++)
+  {
+    printf("send to %d..\n",g_conn_data.connList[i]);
+    //sendPrivPoker(g_conn_data.connList[i]);
+    sendPokerMsgToUser(g_conn_data.connList[i], action);
+    sleep(2);
+  }
 }
 
 int findConnectedUser(int conn,ConnData *data)
@@ -406,7 +580,7 @@ int findUserLoc(int conn,ConnData *data)
 int isAllLogin(ConnData *data)
 {
  int result = TRUE;
- for(int i = 0;i < 3;i++)
+ for(int i = 0;i < MAX_DESK_PLAYER;i++)
  {
    if(data->connList[i] == 0)
    {
@@ -439,31 +613,100 @@ char * build_priv_poker_msg(int conn,int *len)
   get_poker(p2+g_poker_index,buf+index);
   index += 3;
   g_poker_index++;
-  /* 
-  memcpy(buf,&poker.command,sizeof(poker.command));
-  index += sizeof(poker.command);
-  memcpy(buf+index,&poker.user_id,sizeof(poker.user_id));
-  index += sizeof(poker.user_id);
-  memcpy(buf+index,&poker.len,sizeof(poker.len));
-  index += sizeof(poker.len);
-  memcpy(buf+index,p2,sizeof(Poker)*poker.len);
-  index += (poker.len)*sizeof(Poker);
-  for(i = 0;i< *len-1;i++)
-  {
-     if(buf[i] == 0)
-     {
-       buf[i] = '0';
-     }
-     else if(1 <= buf[i] && buf[i] <= 15)
-     {
-       buf[i] += '0';
-     } 
-  }
-  */
+
   buf[*len - 1] = '\n';
   return buf;
 }
 
+char * build_flop_poker_msg(int conn,int *len)
+{
+  Req_Poker poker;
+  poker.command = POKER_ACTION_FLOP;
+  poker.user_id = conn;
+  poker.len = 3;
+  //Poker *p2 = (Poker *)malloc(poker.len * sizeof(Poker));
+  if (g_flop_msg) {
+    return g_flop_msg;
+  }
+
+  Poker *p2 = p_global + g_poker_index;
+
+  *len = sizeof(poker.command) + sizeof(poker.user_id) + sizeof(poker.len) + poker.len * sizeof(Poker) + 1; // +1 for \0
+  char * buf = (char *)malloc(*len);
+  memset(buf,0,*len);
+  int index = 0;
+  snprintf(buf,*len,"%04d%04d%04d",poker.command,poker.user_id,poker.len);
+  index += 12;
+  get_poker(p2,buf+index);
+  g_game_pub[0] = *p2;
+  index += 3;
+  g_poker_index++;
+  get_poker(p2+g_poker_index,buf+index);
+  g_game_pub[1] = *(p2 + g_poker_index);
+  index += 3;
+  g_poker_index++;
+  get_poker(p2+g_poker_index,buf+index);
+  g_game_pub[1] = *(p2 + g_poker_index);
+  index += 3;
+  g_poker_index++;
+  buf[*len - 1] = '\n';
+  g_flop_msg = buf;
+  return buf;
+}
+
+char * build_turn_poker_msg(int conn,int *len)
+{
+  Req_Poker poker;
+  poker.command = POKER_ACTION_TURN;
+  poker.user_id = conn;
+  poker.len = 1;
+  if (g_turn_msg) {
+    return g_turn_msg;
+  }
+  //Poker *p2 = (Poker *)malloc(poker.len * sizeof(Poker));
+  Poker *p2 = p_global + g_poker_index;
+
+  *len = sizeof(poker.command) + sizeof(poker.user_id) + sizeof(poker.len) + poker.len * sizeof(Poker) + 1; // +1 for \0
+  char * buf = (char *)malloc(*len);
+  memset(buf,0,*len);
+  int index = 0;
+  snprintf(buf,*len,"%04d%04d%04d",poker.command,poker.user_id,poker.len);
+  index += 12;
+  get_poker(p2,buf+index);
+  g_game_pub[3] = *p2;
+  index += 3;
+  g_poker_index++;
+  buf[*len - 1] = '\n';
+  g_turn_msg = buf;
+  return buf;
+}
+
+char * build_river_poker_msg(int conn,int *len)
+{
+  Req_Poker poker;
+  poker.command = POKER_ACTION_RIVER;
+  poker.user_id = conn;
+  poker.len = 1;
+  if (g_river_msg) {
+    return g_river_msg;
+  }
+  //Poker *p2 = (Poker *)malloc(poker.len * sizeof(Poker));
+  Poker *p2 = p_global + g_poker_index;
+
+  *len = sizeof(poker.command) + sizeof(poker.user_id) + sizeof(poker.len) + poker.len * sizeof(Poker) + 1; // +1 for \0
+  char * buf = (char *)malloc(*len);
+  memset(buf,0,*len);
+  int index = 0;
+  snprintf(buf,*len,"%04d%04d%04d",poker.command,poker.user_id,poker.len);
+  index += 12;
+  get_poker(p2,buf+index);
+  g_game_pub[4] = *p2;
+  index += 3;
+  g_poker_index++;
+  buf[*len - 1] = '\n';
+  g_river_msg = buf;
+  return buf;
+}
 #if 0
 void dumpPrivMsg(const char *msg)
 {

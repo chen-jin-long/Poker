@@ -1,7 +1,7 @@
 TARGET = poker_game.o
 all: $(TARGET)
 $(TARGET):poker_game.cpp
-	gcc -c  poker_game.cpp -I ../poker/include/
+	gcc -c  poker_game.cpp -I ../poker/include/ -I ../common/
 clean:
 	rm $(TARGET)
 
