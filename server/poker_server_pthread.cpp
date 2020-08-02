@@ -24,6 +24,8 @@
 char status[MAX_DESK_PLAYER] = {0};
 ConnData g_conn_data;
 pthread_rwlock_t rwlock;
+/* 发牌的写锁 */
+pthread_rwlock_t dptlock;
 int listenfd;
 int g_stage = POKER_STAGE_LOGIN;
 int g_poker_index = 0;
@@ -58,6 +60,10 @@ char * build_river_poker_msg(int conn,int *len);
 //void dumpPrivMsg(const char *msg);
 void sendPokerMsgToUser(int conn, BUILD_POKER_MSG poker_msg);
 void sendPokerMsgToAll(int action);
+Poker * dispatchPoker(int num);
+int getPokerIndex();
+
+
 #define TRUE 1
 #define FALSE 0 
 
@@ -75,10 +81,11 @@ int main()
     priv_msg = build_priv_poker_msg(&msg_len);
     */
     setupPokerRoom(proom);
+    memcpy(g_game_pub, dispatchPoker(PUB_LEN), sizeof(Poker) * PUB_LEN);
     InitGamePubPoker(proom->pdesk[0]->game, &g_game_pub);
     memset(g_conn_data.connList,0,sizeof(g_conn_data.connList));
     pthread_rwlock_init(&rwlock,NULL);
-
+    pthread_rwlock_init(&dptlock, NULL);
     listenfd = socket(AF_INET,SOCK_STREAM,0);
     int mw_optval = 1;
     setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, (char *)&mw_optval,sizeof(mw_optval)); 
@@ -130,6 +137,7 @@ int main()
       //close(connectfd);
   }
   pthread_rwlock_destroy(&rwlock);
+  pthread_rwlock_destroy(&dptlock);
   close(listenfd);
   return 0;
 }
@@ -283,6 +291,9 @@ void login_process(int conn)
       pthread_rwlock_wrlock(&rwlock);
       status[i] = 'a';
       g_conn_data.connList[i] = conn;
+      proom[0].pdesk[0]->person[i].connId = conn;
+      memcpy(&(proom[0].pdesk[0]->person[i].priv[0]), dispatchPoker(1), sizeof(Poker));
+      memcpy(&(proom[0].pdesk[0]->person[i].priv[1]), dispatchPoker(1), sizeof(Poker));
      // pthread_rwlock_unlock(&rwlock);
       break;
     }
@@ -400,7 +411,7 @@ void *do_poker_process(void *arg)
             {
                 snprintf(info, sizeof(info),"[bet]:g_money=%d\n", proom[0].pdesk[0]->betMoney);
                 sendMsgToAll(info);
-                g_stage = POKER_STAGE_TURN;
+                g_stage = POKER_STAGE_RIVER;
                 sendMsgToAll("next stage : river....\n");
                 sleep(2);
                 sendPokerMsgToAll(POKER_ACTION_RIVER);
@@ -413,7 +424,7 @@ void *do_poker_process(void *arg)
     {
         if(status[cur_conn] == 'e')
         {
-	        cur_conn++;
+	      cur_conn++;
           sendPokerMsgToAll(POKER_ACTION_RIVER);
           if(cur_conn < g_conn_data.size)
           {
@@ -504,6 +515,30 @@ BUILD_POKER_MSG getPokerMsgByType(int action)
   return msg;
 }
 
+Poker * dispatchPoker(int num)
+{
+    pthread_rwlock_wrlock(&dptlock);
+    if (g_poker_index < 0) {
+        printf("[%s] g_poker_index = %d\n", __FUNCTION__, g_poker_index);
+        return NULL;
+    }
+    if (g_poker_index + num > ONE_UNIT_POKER) {
+        printf("[%s] no enough poker num, g_poker_index = %d, num =%d\n", __FUNCTION__, g_poker_index, num);
+        return NULL;
+    }
+    Poker *curr = p_global + g_poker_index;
+    g_poker_index += num;
+    pthread_rwlock_unlock(&dptlock);
+    return curr;
+}
+
+int getPokerIndex()
+{
+  pthread_rwlock_rdlock(&dptlock);
+  int index = g_poker_index;
+  pthread_rwlock_unlock(&dptlock);
+  return index;
+}
 
 void sendPrivPoker(int conn)
 {
@@ -592,154 +627,91 @@ int isAllLogin(ConnData *data)
 return result;
 }
 
-char * build_priv_poker_msg(int conn,int *len)
+char *getReqPokerMsg(Req_Poker_Header *head, int *msgLen)
 {
-  Req_Poker poker = {0};
-  poker.command = POKER_ACTION_PRIV;
-  poker.user_id = conn;
-  poker.len = 2;
-  //Poker *p2 = (Poker *)malloc(poker.len * sizeof(Poker));
-  Poker *p2 = p_global + g_poker_index;
-
-  *len = sizeof(poker.command) + sizeof(poker.user_id) + sizeof(poker.len) + poker.len * sizeof(Poker) + 1; // +1 for \0
-  char * buf = (char *)malloc(*len);
-  memset(buf,0,*len);
-  int index = 0;
-  snprintf(buf,*len,"%04d%04d%04d",poker.command,poker.user_id,poker.len);
-  index += 12;
-  get_poker(p2,buf+index);
-  index += 3;
-  g_poker_index++;
-  get_poker(p2+g_poker_index,buf+index);
-  index += 3;
-  g_poker_index++;
-
-  buf[*len - 1] = '\n';
-  return buf;
-}
-
-char * build_flop_poker_msg(int conn,int *len)
-{
-  Req_Poker poker;
-  poker.command = POKER_ACTION_FLOP;
-  poker.user_id = conn;
-  poker.len = 3;
-  //Poker *p2 = (Poker *)malloc(poker.len * sizeof(Poker));
-  if (g_flop_msg) {
-    return g_flop_msg;
-  }
-
-  Poker *p2 = p_global + g_poker_index;
-
-  *len = sizeof(poker.command) + sizeof(poker.user_id) + sizeof(poker.len) + poker.len * sizeof(Poker) + 1; // +1 for \0
-  char * buf = (char *)malloc(*len);
-  memset(buf,0,*len);
-  int index = 0;
-  snprintf(buf,*len,"%04d%04d%04d",poker.command,poker.user_id,poker.len);
-  index += 12;
-  get_poker(p2,buf+index);
-  g_game_pub[0] = *p2;
-  index += 3;
-  g_poker_index++;
-  get_poker(p2+g_poker_index,buf+index);
-  g_game_pub[1] = *(p2 + g_poker_index);
-  index += 3;
-  g_poker_index++;
-  get_poker(p2+g_poker_index,buf+index);
-  g_game_pub[1] = *(p2 + g_poker_index);
-  index += 3;
-  g_poker_index++;
-  buf[*len - 1] = '\n';
-  g_flop_msg = buf;
-  return buf;
-}
-
-char * build_turn_poker_msg(int conn,int *len)
-{
-  Req_Poker poker;
-  poker.command = POKER_ACTION_TURN;
-  poker.user_id = conn;
-  poker.len = 1;
-  if (g_turn_msg) {
-    return g_turn_msg;
-  }
-  //Poker *p2 = (Poker *)malloc(poker.len * sizeof(Poker));
-  Poker *p2 = p_global + g_poker_index;
-
-  *len = sizeof(poker.command) + sizeof(poker.user_id) + sizeof(poker.len) + poker.len * sizeof(Poker) + 1; // +1 for \0
-  char * buf = (char *)malloc(*len);
-  memset(buf,0,*len);
-  int index = 0;
-  snprintf(buf,*len,"%04d%04d%04d",poker.command,poker.user_id,poker.len);
-  index += 12;
-  get_poker(p2,buf+index);
-  g_game_pub[3] = *p2;
-  index += 3;
-  g_poker_index++;
-  buf[*len - 1] = '\n';
-  g_turn_msg = buf;
-  return buf;
-}
-
-char * build_river_poker_msg(int conn,int *len)
-{
-  Req_Poker poker;
-  poker.command = POKER_ACTION_RIVER;
-  poker.user_id = conn;
-  poker.len = 1;
-  if (g_river_msg) {
-    return g_river_msg;
-  }
-  //Poker *p2 = (Poker *)malloc(poker.len * sizeof(Poker));
-  Poker *p2 = p_global + g_poker_index;
-
-  *len = sizeof(poker.command) + sizeof(poker.user_id) + sizeof(poker.len) + poker.len * sizeof(Poker) + 1; // +1 for \0
-  char * buf = (char *)malloc(*len);
-  memset(buf,0,*len);
-  int index = 0;
-  snprintf(buf,*len,"%04d%04d%04d",poker.command,poker.user_id,poker.len);
-  index += 12;
-  get_poker(p2,buf+index);
-  g_game_pub[4] = *p2;
-  index += 3;
-  g_poker_index++;
-  buf[*len - 1] = '\n';
-  g_river_msg = buf;
-  return buf;
-}
-#if 0
-void dumpPrivMsg(const char *msg)
-{
-  Req_Poker poker = {0};
-  int index = 0;
-  int len = strlen(msg);
-  char temp[256] = {0};
-  strncpy(temp,msg,sizeof(temp)-1);
-  int i = 0;
-  for(i = 0;i < len;i++)
-  {
-    if(temp[i] == '0')
-    {
-      temp[i] = 0;
+    int len = sizeof(head->command) + sizeof(head->user_id) + sizeof(head->len) + head->len * sizeof(Poker) + 1; // +1 for \0
+    char * buf = (char *)malloc(len);
+    if (buf) {
+        memset(buf,0,len);
+        snprintf(buf,len,"%04d%04d%04d", head->command, head->user_id, head->len);
+        *msgLen = len;
+        return buf;
     }
-  }
-  memcpy(&poker.command,temp,sizeof(poker.command));
-  index += sizeof(poker.command);
-  memcpy(&poker.user_id,temp+index,sizeof(poker.user_id));
-  index += sizeof(poker.user_id);
-  memcpy(&poker.len,temp+index,sizeof(poker.len));
-  index += sizeof(poker.len);
-  printf("command : %d ",poker.command);
-  printf("user_id: %d ",poker.user_id);
-  printf("len: %d \n",poker.len); 
-  Poker *p = (Poker *)malloc(poker.len);
-  if(p == NULL) return;
-  memcpy(p,temp+index,sizeof(Poker)*poker.len); 
-  for(i = 0; i < poker.len;i++)
-  {
-    printf("poker: value: %d ,color = %c\n",(p+i)->value,(p+i)->color); 
-  }
-  free(p);
-
+    return NULL;
 }
-#endif
+ 
+char * build_priv_poker_msg(int conn,int *msgLen)
+{
+  int loc = findUserLoc(conn,&g_conn_data);
+  Req_Poker_Header head = {0};
+  head.command = POKER_ACTION_PRIV;
+  head.user_id = loc;
+  head.len = PRIV_LEN;
+  char *buf = getReqPokerMsg(&head, msgLen);
+  if (buf) {
+    //memcpy(buf+REQ_POKER_HEADER_LEN, &proom[0].pdesk[0]->person[loc].priv[0], sizeof(Poker)*PRIV_LEN);
+    get_poker_msg(&proom[0].pdesk[0]->person[loc].priv[0], head.len, buf+REQ_POKER_HEADER_LEN);
+    buf[*msgLen - 1] = '\n';
+  }
+  return buf;
+}
+
+char * build_flop_poker_msg(int conn,int *msgLen)
+{
+    if (g_flop_msg) {
+        return g_flop_msg;
+    }
+    //int loc = findUserLoc(conn,&g_conn_data);
+    Req_Poker_Header head = {0};
+    head.command = POKER_ACTION_FLOP;
+    head.user_id = 0xff;
+    head.len = POKER_FLOP_NUM;
+    char *buf = getReqPokerMsg(&head, msgLen);
+    if (buf) {
+        //memcpy(buf+REQ_POKER_HEADER_LEN, g_game_pub, POKER_FLOP_NUM);
+        get_poker_msg(g_game_pub, POKER_FLOP_NUM, buf+REQ_POKER_HEADER_LEN);
+        buf[*msgLen - 1] = '\n';
+        g_flop_msg = buf;
+    }
+    return buf;
+}
+
+char * build_turn_poker_msg(int conn,int *msgLen)
+{
+    if (g_turn_msg) {
+        return g_turn_msg;
+    }
+    //int loc = findUserLoc(conn,&g_conn_data);
+    Req_Poker_Header head = {0};
+    head.command = POKER_ACTION_TURN;
+    head.user_id = 0xff;
+    head.len = POKER_TURN_NUM;
+    char *buf = getReqPokerMsg(&head, msgLen);
+    if (buf) {
+        //memcpy(buf+REQ_POKER_HEADER_LEN, g_game_pub + POKER_FLOP_NUM, POKER_TURN_NUM);
+        get_poker_msg(g_game_pub+POKER_FLOP_NUM, POKER_TURN_NUM, buf+REQ_POKER_HEADER_LEN);
+        buf[*msgLen - 1] = '\n';
+        g_turn_msg = buf;
+    }
+    return buf;
+}
+
+char * build_river_poker_msg(int conn,int *msgLen)
+{
+    //int loc = findUserLoc(conn,&g_conn_data);
+    Req_Poker_Header head = {0};
+    head.command = POKER_ACTION_RIVER;
+    head.user_id = 0xff;
+    head.len = POKER_RIVER_NUM;
+    if (g_river_msg) {
+        return g_river_msg;
+    }
+    char *buf = getReqPokerMsg(&head, msgLen);
+    if (buf) {
+        //memcpy(buf+REQ_POKER_HEADER_LEN, g_game_pub+POKER_FLOP_NUM+POKER_TURN_NUM, POKER_RIVER_NUM);
+        get_poker_msg(g_game_pub+POKER_FLOP_NUM+POKER_TURN_NUM, POKER_RIVER_NUM, buf+REQ_POKER_HEADER_LEN);
+        buf[*msgLen - 1] = '\n';
+        g_river_msg = buf;
+    }
+    return buf;
+}

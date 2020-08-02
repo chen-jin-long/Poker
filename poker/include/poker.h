@@ -12,6 +12,9 @@ extern "C" {
 #define PRIV_LEN 2
 #define PUB_LEN  5
 #define ONE_UNIT_POKER 54
+#define POKER_FLOP_NUM 3
+#define POKER_RIVER_NUM 1
+#define POKER_TURN_NUM 1
 
 typedef struct {
   int value;
@@ -23,6 +26,7 @@ typedef struct {
  Poker priv[PRIV_LEN];
  Poker (*best_chance)[PUB_LEN]; //最优解
  char status;
+ int connId;
 }Person;
 
 typedef struct {

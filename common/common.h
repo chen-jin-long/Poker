@@ -34,11 +34,15 @@ typedef struct
   int msg;
 }Req_Bet;
 
+typedef struct {
+    int command;
+    int user_id;
+    int len; 
+}Req_Poker_Header;
+
 typedef struct
 {
-  int command;
-  int user_id;
-  int len;
+  Req_Poker_Header *head;
   Poker *poker;
 }Req_Poker;
 
@@ -53,6 +57,8 @@ typedef enum
 
 void dumpPrivMsg(const char *msg);
 POKER_RETURE_PARAM get_poker(Poker *poker,char *out);
+POKER_RETURE_PARAM get_poker_msg(Poker *poker, int num, char *out);
+#define REQ_POKER_HEADER_LEN (sizeof(Req_Poker_Header))
 #ifdef __cplusplus
 }
 #endif

@@ -24,6 +24,7 @@ int setupPokerRoom(POKER_ROOM *pr)
 POKER_DESK * setupPokerDesk(int desk_id,POKER_ROOM *proom)
 {
   POKER_DESK *desk = NULL;
+  int id = 0;
   if((proom->pdesk)[desk_id] == NULL)
   {
      printf("desk for %d was not setuped,now we will malloc\n",desk_id);
@@ -35,6 +36,11 @@ POKER_DESK * setupPokerDesk(int desk_id,POKER_ROOM *proom)
      (proom->pdesk)[desk_id]->desk_id = desk_id;
      initDeskStage((proom->pdesk)[desk_id]);
      proom->pdesk[desk_id]->game = (Game *)malloc(sizeof(Game));
+      for (id = 0; id < MAX_DESK_PLAYER; id++) {
+        proom->pdesk[desk_id]->person[id].id = 0;
+        //proom->pdesk[desk_id]->person[id].priv = 
+        proom->pdesk[desk_id]->person[id].best_chance = (Poker (*)[PUB_LEN])malloc(sizeof(Poker)*PUB_LEN);
+      }
      //proom->pdesk[desk_id]->game->pub = &g_game_pub;
   }
   else

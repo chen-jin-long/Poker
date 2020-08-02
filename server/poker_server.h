@@ -24,7 +24,7 @@ typedef struct msg
 
 typedef struct
 {
-  int connList[3];
+  int connList[MAX_DESK_PLAYER];
   int size;
 }ConnData;
 

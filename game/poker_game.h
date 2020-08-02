@@ -1,10 +1,10 @@
 #ifndef _POKER_GAME_H
 #define _POKER_GAME_H
 #include "poker.h"
+
 #define MAX_POKER_DESK 1
 #define MAX_DESK_PLAYER 3
 #define MAX_POKER_ROOM 1
-
 #define POKER_GAME_INIT_MONEY 10
 
 typedef struct{
