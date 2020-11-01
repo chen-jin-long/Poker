@@ -6,6 +6,7 @@
 #include "Utils.h"
 #include "poker_send.h"
 #include "common.h"
+#include "poker_game.h"
 
 namespace {
 using namespace std;
@@ -128,6 +129,34 @@ class PokerTest : public testing::Test {
   }
   
 }
+TEST_F(PokerTest, get_fixed_poker)
+{
+    const char *msg1 = "1:a,2:b,3:c,4:d,5:e,6:f,7:g,8:h,9:i,10:j,11:k";
+    const char *msg2 = "11:a,12:b,13:c,14:d,15:e,16:f,17:g,18:h,19:i,20:j,21:k";
+    int len = (PUB_LEN + PRIV_LEN*MAX_DESK_PLAYER);
+    int i = 0;
+    Poker *pk = NULL;
+    Poker *pk2 = NULL;
+    pk = get_fixed_poker(msg1);
+    ASSERT_TRUE(pk != NULL);
+    for (i = 0; i < len; i++) {
+        EXPECT_EQ(pk[i].value, i+1);
+        EXPECT_EQ(pk[i].color, 'a' + i);
+    }
+    free(pk);
+    pk = NULL;
+    pk2 = get_fixed_poker(msg2);
+    ASSERT_TRUE(pk2 != NULL);
+    for (i = 0; i < len; i++) {
+        EXPECT_EQ(pk2[i].value, 11+i);
+        EXPECT_EQ(pk2[i].color, 'a'+i);
+        EXPECT_EQ((pk2+i)->value, 11+i);
+        EXPECT_EQ((pk2+i)->color, 'a'+i);
+    }
+    free(pk2);
+    pk2 = NULL;
+}
+
 
 int main(int argc,char *argv[]){
    ::testing::InitGoogleTest(&argc, argv);

@@ -1,8 +1,8 @@
 TARGET = server
-POKER_GAME=../game/poker_game.o
+POKER_GAME = $(ROOT_DIR)/game/poker_game.o
 all: $(TARGET)
-$(TARGET):$(POKER_GAME) poker_server_pthread.cpp poker_server.h 
-	gcc -o server poker_server_pthread.cpp $(POKER_GAME) -I ../game -I ../poker/include -I ../common -lpthread -L ../poker -lpoker ../common/common.o -g
+$(TARGET):$(POKER_GAME)  poker_server_pthread.c $(POKER_GAME)  poker_server.h $(ROOT_DIR)/poker/libpoker.a   $(ROOT_DIR)/common/common.o 
+	gcc -o server poker_server_pthread.c $(POKER_GAME) -I $(ROOT_DIR)/game -I $(ROOT_DIR)/poker/include -I $(ROOT_DIR)/common -I $(ROOT_DIR)/Utils -lpthread -L $(ROOT_DIR)/poker -lpoker $(ROOT_DIR)/common/common.o -g
 clean:
 	rm server
 

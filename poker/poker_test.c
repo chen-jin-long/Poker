@@ -4,8 +4,16 @@
 #include "poker.h"
 #include "poker_type.h"
 #include "poker_compare.h"
+#include "Utils.h"
 #define SIZE 100
 typedef int (*FUNC_ALGO)(Person person,Game *game);
+
+
+void get_priv_data(const char *buffer,Person *person,Game *game);
+void get_test_result(const char *buffer,int *result);
+int slow_test_poker_algo(Person person,Game *game);
+void count_result_type(int result[],int type);
+
 /*
 20 同花大顺
 19 同花顺
@@ -40,6 +48,13 @@ int get_test_data(const char *file,Person *person,Game *game,FUNC_ALGO func,int 
         //int result = slow_test_poker_algo(*person,game);
         int result = func(*person,game);
         *best = result;
+
+         if(result != 0) {
+           for(j = 0;j < 5;j++){
+             printf("fast best_chance[%d] .value = %d,.color = %c\n",j,(*person->best_chance+j)->value,(*person->best_chance+j)->color);
+           }
+        }
+
         give_result = slow_test_poker_algo(*person,game);
         printf("give_result = %d,result = %d\n",give_result,result);
         count ++; 
@@ -53,9 +68,10 @@ int get_test_data(const char *file,Person *person,Game *game,FUNC_ALGO func,int 
         } 
         if(result != 0){
           for(j = 0;j < 5;j++){
-            printf("best_chance[%d] .value = %d,.color = %c\n",j,(*person->best_chance+j)->value,(*person->best_chance+j)->color);
+            printf("slow best_chance[%d] .value = %d,.color = %c\n",j,(*person->best_chance+j)->value,(*person->best_chance+j)->color);
           }
        }
+       print_BestChance((Poker *)(person->best_chance), PUB_LEN);
        printf("\n");
 
     }
@@ -64,22 +80,22 @@ int get_test_data(const char *file,Person *person,Game *game,FUNC_ALGO func,int 
 }
 
 void get_priv_data(const char *buffer,Person *person,Game *game){
-    char *p = buffer;
+    //char *p = buffer;
     int close = 0,i = 0,count = 0,flag = 0,result = 0,num = 0,k = 0;
     char value[PRIV_LEN];
     char color;
-    while(*(p+i) != '\0' && *(p+i) != '\n' && *(p+i) != ';' && (*p+i) != '#'){
-        if(*(p+i) != ','){
-          if(*(p+i) == ':'){
+    while(*(buffer+i) != '\0' && *(buffer+i) != '\n' && *(buffer+i) != ';' && *(buffer+i) != '#'){
+        if(*(buffer+i) != ','){
+          if(*(buffer+i) == ':'){
             if(count == 1){
               value[count] = '\0';
             } 
             result = atoi(value);
             i++;
-            color = *(p+i);
+            color = *(buffer+i);
             memset(value,0,sizeof(char)*PRIV_LEN);
           }else{
-            value[count] = *(p+i);
+            value[count] = *(buffer+i);
             count ++;
           }
         }else{
@@ -100,13 +116,12 @@ void get_priv_data(const char *buffer,Person *person,Game *game){
 }
 
 void get_test_result(const char *buffer,int *result){
-
-    char *p = buffer;
+    //char *p = buffer;
     int i = 0, begin = 0,count = 0;
     char value[3];//we just need 3 char to store poker type,and the one is '\0' to use atoi 
-    while(*(p+i) != '\0' && *(p+i) != '\n' && *(p+i) != '#'){
+    while(*(buffer+i) != '\0' && *(buffer+i) != '\n' && *(buffer+i) != '#'){
         //printf("char is %c\n",*(p+i));
-        if(*(p+i) == ';'){
+        if(*(buffer+i) == ';'){
             if(begin == 0){
                 begin = 1;
                 i++;
@@ -115,7 +130,7 @@ void get_test_result(const char *buffer,int *result){
             else break;
         }
         if(begin == 1){
-            value[count] = *(p+i);
+            value[count] = *(buffer+i);
             count ++;
         }
         if(count == 2){
@@ -170,7 +185,7 @@ int slow_algo_flush_game(int poker[],char color[]){
     else return 0;
 }
 
-int slow_algo_four_game(int poker[],char color){
+int slow_algo_four_game(int poker[],char color[]){
     int i = 0,flag[PUB_LEN - 1],count = 0,loc = 0,find = 0;
     for(i = 0;i<PUB_LEN-1;i++){
         flag[i] = poker[i+1] - poker[i];
@@ -312,6 +327,7 @@ int main(int argc,char *argv[]){
     int best = 0;
     //get_test_data("data.txt",&p1,&game,slow_test_poker_algo,&best);
     get_test_data(fname,&p1,&game,fast_poker_algo,&best);
+    //print_BestChance((Poker *)(p1.best_chance), PUB_LEN);
     //int test_result = 0;
    // get_test_result(";",&test_result);
     //printf("reselt: %d\n",test_result);

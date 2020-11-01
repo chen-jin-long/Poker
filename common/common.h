@@ -7,16 +7,20 @@ extern "C" {
 #include<stdio.h>
 #include "poker.h"
 
+#define CLIENT_SN_LEN 4
+
+
 #define POKER_ACTION_LOGIN 0x00000001
 #define POKER_ACTION_PRIV  0x00000002
-#define POKER_ACTION_BET_1 0x00000003
+#define POKER_ACTION_BET 0x00000003
 #define POKER_ACTION_FLOP  0x00000004
 #define POKER_ACTION_TURN  0x00000005
 #define POKER_ACTION_RIVER 0x00000006
 #define POKER_ACTION_OVER  0x00000007
 #define POKEK_ACTION_UNKNOWN 0xffffffff
 typedef enum {
-  POKER_STAGE_LOGIN = 0,
+  POKER_STAGE_LOGIN = 1,
+  POKER_STAGE_PRIV,
   POKER_STAGE_BET,
   POKER_STAGE_FLOP,
   POKER_STAGE_TURN,
@@ -27,16 +31,16 @@ typedef enum {
 
 typedef struct
 {
-  int command;
   int user_id;
+  int command;
   int flag;
   int action;
   int msg;
 }Req_Bet;
 
 typedef struct {
-    int command;
     int user_id;
+    int command;
     int len; 
 }Req_Poker_Header;
 

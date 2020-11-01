@@ -1,6 +1,6 @@
 TARGET = common.o
 all : $(TARGET)
-$(TARGET) : common.cpp
-	gcc -c $< -o $@ -I ../poker/include
+$(TARGET) : common.c
+	gcc -c $< -o $@ -I $(ROOT_DIR)/poker/include
 
 .PHONY : all

@@ -214,6 +214,7 @@ void sort(int poker[],int len){
   }
 
 }
+
 void sort_and_color(int poker[],char color[],int len){
   int i,k,temp;
   char temp_color;
@@ -231,7 +232,7 @@ void sort_and_color(int poker[],char color[],int len){
   }
 }
 
-int sort_poker_game(Person *person,Game *game){
+void sort_poker_game(Person *person,Game *game){
   int pub[PUB_LEN]={0};
   char pub_color[PUB_LEN] = {'s'};
   int priv[PRIV_LEN] = {0};
@@ -259,6 +260,29 @@ int sort_poker_game(Person *person,Game *game){
   }
 }
 
+void sort_poker_bestChance(Poker (*best_chance)[PUB_LEN])
+{
+    int p_value[PUB_LEN] = {0};
+    char p_color[PUB_LEN] = {'s'};
+    int i = 0;
+    for(i = 0; i < PUB_LEN; i++){
+        p_value[i] = (*best_chance)[i].value;
+        p_color[i] = (*best_chance)[i].color;
+    }
+    sort_and_color(p_value,p_color,PUB_LEN);
+    for(i = 0; i < PUB_LEN; i++) {
+        //(*best_chance[i]).value = p_value[i];
+        //(*best_chance[i]).color = p_color[i];
+        //best_chance[i]->value = p_value[i];
+        //best_chance[i]->color = p_color[i];
+
+        (*best_chance)[i].value = p_value[i];
+        (*best_chance)[i].color = p_color[i];
+        //(*best_chance + i)->value = p_value[i];
+        //(*best_chance + i)->color = p_color[i];
+    }
+}
+
 void print_array(int poker[],int len){
   int i=0;
   for(i = 0;i<len;i++){
@@ -280,6 +304,21 @@ void print_Array(const char * name,int poker[],int len){
     printf("%s[%d] = %d ,",name,i,poker[i]);
   }
   printf("\n");
+}
+
+void print_Poker(Poker *poker) {
+    if (poker) {
+        printf("[%d:%c]\n", poker->value, poker->color);
+    }
+}
+
+void print_BestChance(Poker *poker, int len) {
+    int i = 0;
+    printf("=====Best Choice====\n");
+    for (i = 0; i < len; i++) {
+       print_Poker(poker+i);
+    }
+    printf("=====Best Choice====\n");
 }
 void get_three_poker_val(int poker[],int *value){
         int i = 0,count = 0;
@@ -321,5 +360,50 @@ int find_poker(Poker *base,Poker *find)
   return 0;
 }
 
+int match_pub_poker_color(Poker *poker, Game *game, int *flag)
+{
+    int i = 0;
+    for (i = 0; i < PUB_LEN; i++) {
+        if ((poker->value == (*game->pub + i)->value) && flag[i] == 0) {
+            poker->color = (*game->pub + i)->color;
+            flag[i] = 1;
+            return 0;
+        }
+    }
+    return -1;
+}
 
+int set_bestChance_color(Person *person, Game *game, int result)
+{
+    int matchFlag[PUB_LEN+PRIV_LEN] = {0};
+    int i = 0;
+    if (person == NULL || game == NULL) {
+        return -1;
+    }
+    if (result >= POKER_TYPE_FLUSH_STRAIGHT) {
+        printf("[%s] result =%d, not set bestchance color.\n", __FUNCTION__, result);
+        return 0;
+    }
+    for (i = 0; i < PUB_LEN; i++) {
+        if ((*person->best_chance + i)->value == person->priv[0].value && matchFlag[5] == 0) {
+            (*person->best_chance + i)->color = person->priv[0].color;
+            matchFlag[5] = 1;
+        } else if ((*person->best_chance + i)->value == person->priv[1].value && matchFlag[6] == 0) {
+            (*person->best_chance + i)->color = person->priv[1].color;
+            matchFlag[6] = 1;
+        } else {
+            if (match_pub_poker_color(*person->best_chance + i,  game, matchFlag)) {
+                printf("[%s] error..\n", __FUNCTION__);
+                return -1;
+            }
+        }
+
+    }
+    return 0;
+}
+
+int getClientId(const char *data)
+{
+
+}
 

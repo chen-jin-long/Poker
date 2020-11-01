@@ -526,17 +526,6 @@ int is_two_poker(Person person,Game *game){
   zero_num = cal_num_in_array(flag,PUB_LEN-1,0);
   if(det == 0){
       two_poker[0] = priv[0];
-      /*
-      if(flag[0] == 0 && pub[0] == 1) two_poker[1] = 1;
-      else{
-       for(i = PUB_LEN-2,count = 0;i >= 0;i--){
-         if(flag[i] == 0){
-             two_poker[1] = pub[i];
-             break;
-         }
-       }
-      }
-      */
       get_max_constant_num(pub,PUB_LEN,flag,PUB_LEN -1,&two_poker[1]);
       (*person.best_chance + 0 )->value = two_poker[0];
       (*person.best_chance + 1 )->value = two_poker[0];
@@ -579,16 +568,6 @@ int is_two_poker(Person person,Game *game){
         if(priv[1] == pub[i]) chance[1] = pub[i];
         if(priv[0] == priv[1])printf("is_two_poker error...\n");
      }
-
-     /*
-     for(i = PUB_LEN-2;i>=0;i--){
-        if(flag[i] == 0){
-           chance[2] = pub[i];
-           break;
-        }
-     }
-     if(flag[0] == 0 && pub[0] == 1)chance[2] = 1;
-     */
      get_max_constant_num(pub,PUB_LEN,flag,PUB_LEN -1,&chance[2]);
      printf("chance is %d,%d,%d\n",chance[0],chance[1],chance[2]);
      zero_num =  cal_num_in_array(chance,3,0);
@@ -603,19 +582,19 @@ int is_two_poker(Person person,Game *game){
 
        }else{
            if(chance[0] == 1 && chance[1] != 0){
-                 if(chance[2] > chance[1]){
-                    (*person.best_chance + 0 )->value = chance[0];
-                    (*person.best_chance + 1 )->value = chance[0];
-                    (*person.best_chance + 2 )->value = chance[2];
-                    (*person.best_chance + 3 )->value = chance[2];
-                    (*person.best_chance + 4 )->value = chance[1];
-                 }else{
-                    (*person.best_chance + 0 )->value = chance[0];
-                    (*person.best_chance + 1 )->value = chance[0];
-                    (*person.best_chance + 2 )->value = chance[1];
-                    (*person.best_chance + 3 )->value = chance[1];
-                    (*person.best_chance + 4 )->value = chance[2];
-                 }
+             if(chance[2] > chance[1]){
+                (*person.best_chance + 0 )->value = chance[0];
+                (*person.best_chance + 1 )->value = chance[0];
+                (*person.best_chance + 2 )->value = chance[2];
+                (*person.best_chance + 3 )->value = chance[2];
+                (*person.best_chance + 4 )->value = chance[1];
+             }else{
+                (*person.best_chance + 0 )->value = chance[0];
+                (*person.best_chance + 1 )->value = chance[0];
+                (*person.best_chance + 2 )->value = chance[1];
+                (*person.best_chance + 3 )->value = chance[1];
+                (*person.best_chance + 4 )->value = chance[2];
+             }
 
            }else if(chance[0] != 1 && chance[1] == 1){
                 if(chance[2] > chance[0]){
@@ -658,13 +637,23 @@ int is_two_poker(Person person,Game *game){
        }
        return POKER_TYPE_TWO_PAIR;
      }else if(zero_num == 1){
-       for(i = 0,count = 0;i<3;i++){
+       for(i = 0, count = 0; i < 3; i++){
          if(chance[i] != 0){
            (*person.best_chance + count )->value = chance[i];
            (*person.best_chance + count + 1 )->value = chance[i];
            count += 2;
          }else{
-           (*person.best_chance + 4 )->value = chance[i];
+           if (i < 2) {
+             (*person.best_chance + 4 )->value = priv[i];
+           } else {
+               int j = 0;
+               for(j = PUB_LEN-1, count = 0; j >= 0; j--) {
+                 if(pub[j] != chance[2]){
+                   (*person.best_chance + 4 )->value = pub[j];
+                    break;
+                 }
+               }
+           }
          }
        }
        return POKER_TYPE_TWO_PAIR;
@@ -715,7 +704,7 @@ int is_two_poker(Person person,Game *game){
             if(chance[1] != 1 && pub[0] == 1){
               (*person.best_chance + 3 )->value = 1;
               for(i=PUB_LEN-1,count = 0;i>=0;i--){
-                if(pub[i] != chance[0]){
+                if(pub[i] != chance[1]){
                   (*person.best_chance + 4+count )->value = pub[i];
                   count ++;
                   if(count == 1)break;
@@ -725,7 +714,7 @@ int is_two_poker(Person person,Game *game){
               for(i=PUB_LEN-1,count = 0;i>=0;i--){
                 if(pub[i] != chance[1]){
                   (*person.best_chance +3 + count )->value = pub[i];
-                  count ++;
+                  count++;
                   if(count == 2)break;
                 }
               }

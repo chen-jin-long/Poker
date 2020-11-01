@@ -10,6 +10,7 @@ extern "C" {
 #define USER_ID_LEN 10
 typedef struct
 {
+  int clientSN;
   int type;
   int size;
   char value[256];
@@ -28,6 +29,12 @@ typedef struct
   int size;
 }ConnData;
 
+typedef struct {
+    int stage;
+    int action;
+    void (*handleActionCmd)(Msg *msg);
+    void (*handleStageCmd)(Msg *msg);
+}ActionCmd;
 
 #if 0
 typedef struct

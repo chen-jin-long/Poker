@@ -12,6 +12,7 @@ extern "C" {
 #define PRIV_LEN 2
 #define PUB_LEN  5
 #define ONE_UNIT_POKER 54
+#define ONE_UNIT_DK_POKER 52
 #define POKER_FLOP_NUM 3
 #define POKER_RIVER_NUM 1
 #define POKER_TURN_NUM 1
@@ -25,13 +26,15 @@ typedef struct {
  int id;
  Poker priv[PRIV_LEN];
  Poker (*best_chance)[PUB_LEN]; //最优解
- char status;
+ int status;
  int connId;
+ int gameScore;
 }Person;
 
 typedef struct {
- Person p[2];
- Poker (*pub)[PUB_LEN];
+  Person p[2];
+  Poker (*pub)[PUB_LEN];
+  //int stage;
 }Game;
 
 int is_flush_game(Person person,Game *game);

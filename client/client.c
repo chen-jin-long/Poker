@@ -10,6 +10,8 @@
 
 #define MAX_LINE 100
 #define SERV_PORT 8000
+#define POKER_MSG_LEN 14
+
 
 #define handle_error(msg) \
   do { \
@@ -21,8 +23,14 @@ void stop(int signo);
 void *handleRecv(void *arg);
 void *handleWrite(void *arg);
 void handleMsg(const char *buf);
+int getSendMsg(char *buf, int len, int action, int clientId);
 
 int sockfd;
+int action = POKER_ACTION_LOGIN;
+int clientId = 0;
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
+char g_clientSN[CLIENT_SN_LEN] = {0};
 
 int main(int argc,char *argv[])
 {
@@ -31,6 +39,14 @@ int main(int argc,char *argv[])
   //int n;
   pthread_t pid_r = -1;
   pthread_t pid_w = -1;
+  #ifdef AUTO_CLIENT
+    if (argc < 2) {
+        printf("ERROR:argc < 2\n");
+        return -1;
+    }
+    clientId = atoi(argv[1]);
+    printf("clientId = %d\n", clientId);
+  #endif
   sockfd = socket(AF_INET,SOCK_STREAM,0);
   signal(SIGINT,stop);
   memset(&server,0,sizeof(server));
@@ -38,9 +54,19 @@ int main(int argc,char *argv[])
   server.sin_port = htons(SERV_PORT);
   if(-1 == connect(sockfd,(struct sockaddr *)&server,sizeof(server)))
   {
-
     handle_error("connet");
   }
+
+#ifdef AUTO_CLIENT
+  //pthread_mutex_lock(&mutex);
+  char loginMsg[16] = {0};
+  //snprintf(loginMsg, sizeof(loginMsg), "%4d%4d\n", action, clientId);
+  getSendMsg(loginMsg, POKER_MSG_LEN, action, clientId);
+  write(sockfd, loginMsg, strlen(loginMsg));
+  action = POKER_ACTION_PRIV;
+  //pthread_mutex_unlock(&mutex);
+#endif
+
   if(pthread_create(&pid_r,NULL,handleRecv,NULL) < -1)
   {
      handle_error("pthread_create recv failed..\n");
@@ -65,18 +91,24 @@ void stop(int signo)
 void *handleWrite(void *arg)
 {
   char buf[MAX_LINE] = {0};
-
-  while(1){
+  while(1) {
+    pthread_mutex_lock(&mutex);
     memset(buf,0,MAX_LINE);
-    //printf("please input msg to server: \n");
+ #ifdef AUTO_CLIENT
+    pthread_cond_wait(&cond, &mutex);
+    printf("befor getSendMsg...\n");
+    getSendMsg(buf, POKER_MSG_LEN, action, clientId);
+#else
     fgets(buf,MAX_LINE,stdin);
     if(!strncmp(buf,"closed",strlen("closed"))){
        break;
     }
+#endif
+    pthread_mutex_unlock(&mutex);
     write(sockfd,buf,strlen(buf));
     printf("send:%s",buf);
-    memset(buf,0,MAX_LINE);
   }
+
 }
 
 void *handleRecv(void *arg)
@@ -88,7 +120,7 @@ void *handleRecv(void *arg)
     num = read(sockfd,buf,MAX_LINE);
     if(num  == -1 || num == 0)
     {
-      handle_error("read error..\n");   
+      handle_error("read error..\n");
       exit(0); 
     }
     else
@@ -108,36 +140,46 @@ void *handleRecv(void *arg)
 
 void handleMsg(const char *buf)
 {
- int len = strlen(buf);
- int i = 0;
- if(len < sizeof(int) || len > 64)
- {
+    int len = strlen(buf);
+    int i = 0;
+    int command = 0;
+    if(len < sizeof(int) || len > 64)
+    {
     printf("buf len < 4 or > 64, len is %d\n",len);
     return;
- }
- char *temp = (char *)malloc(len);
- if(temp == NULL)
- {
-   printf("malloc failed.\n");
-   return;
- }
- memset(temp,0,sizeof(temp));
- strncpy(temp,buf,len);
- for(i = 0;i< len ;i++)
- {
-   if(temp[i] == '0')
-   {
-     temp[i] = 0;
-   }
+    }
+    char *temp = (char *)malloc(len);
+    if(temp == NULL)
+    {
+    printf("malloc failed.\n");
+    return;
+    }
+    memset(temp,0,sizeof(temp));
+    strncpy(temp,buf+CLIENT_SN_LEN,sizeof(int));
+    //pthread_mutex_lock(&mutex);
+    command = atoi(temp);
+    printf("command: %d\n",command);
+    action = (command > action)?command:action;
+    if(action == POKER_ACTION_PRIV) {
+     //dumpPrivMsg(temp);
+     action = POKER_ACTION_BET;
+    }
+#ifdef AUTO_CLIENT
+    if (strstr(buf, "please bet for")) {
+    printf("pthread_cond_signal start...\n");
+    pthread_cond_signal(&cond);
+    }
+#endif
+    // pthread_mutex_unlock(&mutex);
+}
 
- }
- char val[5] = {0};
- strncpy(val,temp,sizeof(int));
- int command = atoi(val);
- printf("command: %d\n",command);
- if(command == POKER_ACTION_PRIV)
- {
-     dumpPrivMsg(temp);
- }  
-
+int getSendMsg(char *buf, int len, int action, int clientId)
+{
+    printf("[%s] start, action=%d, clientId=%d\n", __FUNCTION__, action ,clientId);
+    if (buf == NULL || len < POKER_MSG_LEN) {
+        return -1;
+    }
+    snprintf(buf, POKER_MSG_LEN+CLIENT_SN_LEN, "%4d%4d0004%4d\n", clientId, action, action*100+clientId*10);
+    printf("[%s] buf=%s\n", __FUNCTION__, buf);
+    return 0;
 }
