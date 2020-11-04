@@ -2,7 +2,7 @@ ROOT_DIR = $(shell pwd)
 #SUB_DIR = $(shell (ls -l | grep ^d | awk '{if($9 != "cJSON") print $9}'))
 #SUB_DIR := $(shell (ls -l | grep ^d | awk '{print $9}'))
 #SUB_DIR := $(wildcard */.)
-SUB_DIR := common  poker game server  client
+SUB_DIR := common  poker game threadPool server  client 
 CC = gcc
 CFLAGS := -g -O
 MAKE = $(CC) $(CFLAGS)

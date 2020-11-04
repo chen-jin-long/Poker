@@ -16,6 +16,7 @@ typedef struct{
   Game *game;
   int winer;
   //POKER_PUBLIC
+  pthread_rwlock_t deskLock;
 }POKER_DESK;
 
 typedef struct{

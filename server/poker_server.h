@@ -20,7 +20,7 @@ typedef struct
 typedef struct msg
 {
   int conn;
-  INFO *info;
+  INFO info;
 }Msg;
 
 typedef struct

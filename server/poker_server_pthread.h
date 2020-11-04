@@ -9,6 +9,7 @@ typedef struct {
     int gameType;
     int roomId;
     int deskId;
+    int playerIndex;
 } GamePlayerDataBase;
 
 

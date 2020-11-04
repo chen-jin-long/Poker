@@ -23,7 +23,7 @@ typedef struct {
 }Poker;
 
 typedef struct {
- int id;
+ int clientSN;
  Poker priv[PRIV_LEN];
  Poker (*best_chance)[PUB_LEN]; //最优解
  int status;
