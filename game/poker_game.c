@@ -20,6 +20,7 @@ int setupPokerRoom(POKER_ROOM *pr)
       {
          //(pr[roomId].pdesk)[deskId] = setupPokerDesk(deskId, pr);
          setupPokerDesk(deskId, &pr[roomId]);
+         pr[roomId].pdesk[deskId]->stage = POKER_ACTION_LOGIN;
       }
   }
   return 0;

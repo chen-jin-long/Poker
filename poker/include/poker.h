@@ -32,7 +32,7 @@ typedef struct {
 }Person;
 
 typedef struct {
-  Person p[2];
+  //Person p[2];
   Poker (*pub)[PUB_LEN];
   //int stage;
 }Game;

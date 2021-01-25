@@ -323,7 +323,8 @@ int main(int argc,char *argv[]){
     Poker max_chance[5] = {{0,'s'},{0,'s'},{0,'s'},{0,'s'},{0,'s'}};
     Person p1 = { 0,{{0,'s'},{0,'s'}} ,&max_chance};
     Poker pub[5] = { {0,'s'},{0,'s'},{0,'s'},{0,'s'},{0,'d'} };
-    Game game = {{p1,p1},&pub};
+    //Game game = {{p1,p1},&pub};
+    Game game = {&pub};
     int best = 0;
     //get_test_data("data.txt",&p1,&game,slow_test_poker_algo,&best);
     get_test_data(fname,&p1,&game,fast_poker_algo,&best);

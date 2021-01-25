@@ -50,7 +50,7 @@ int queue_push(QueueEntry_t *entry, void *data) {
     if (queue) {
         queue->next = NULL;
         queue->data = data;
-        printf("push: %d\n", (int)(*(int *)data));
+        //printf("push: %d\n", (int)(*(int *)data));
         if (entry->cur_num == QUEUE_INIT_NUM) {
             entry->header = queue;
             entry->tail = queue;

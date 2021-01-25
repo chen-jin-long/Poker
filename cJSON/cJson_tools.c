@@ -1,7 +1,10 @@
 #include<stdio.h>
 #include<stdlib.h>
 #include<string.h>
-#include <cjson/cJSON.h>
+#include "cJSON.h"
+#include "msg_json.h"
+
+
 char *create_monitor(void)
 {
     const unsigned int resolution_numbers[3][2] = {
@@ -133,7 +136,7 @@ void testParseJson()
 
 int main(int argc, char **argv)
 {
-
+    #if 0
     char *string = NULL;
     string =  create_monitor();
     if(string) {
@@ -141,6 +144,36 @@ int main(int argc, char **argv)
 	free(string);
     }
     testParseJson();
+    #endif
+
+    int len = -1;
+    int ret = -1;
+    //char *info = NULL;
+    char * info = build_poker_msg(1234, "bet", "please bet for turn");
+    if (info) {
+        printf("%s\n", info);
+        ret = parseMsgHeader(info, &len);
+        printf("ret = %d, len = %x\n", ret, len);
+        if (ret == 0) {
+            char *msgBody = info + HEADER_POKER_MSG_LEN;
+            /* 由于我们在解析时多加了\n和\0,所以 此时的strlen(msgBody) 肯定是大了1 */
+            printf("len = %x\n", (int)strlen(msgBody));
+            Poker_Msg_Module *module = parseJsonMsg(msgBody, len);
+            if (module) {
+                printf("%d\n", module->msgHeader->clientSN);
+                printf("%d\n", module->msgHeader->serialCode);
+                printf("%d\n", module->msgHeader->msgTotalNum);
+                printf("%s\n", module->msgBody->msgType);
+                printf("%s\n", module->msgBody->msgValue);
+                printf("%s\n", module->msgTail->endTag);
+                printf("%d\n", module->msgTail->timestamp);
+                free_poker_msg_module(module);
+                module = NULL;
+            }
+            free(info);
+            info = NULL;
+        }
+    }
     return 0;
 }
 

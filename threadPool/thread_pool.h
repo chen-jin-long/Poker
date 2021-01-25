@@ -1,6 +1,6 @@
 #ifndef __POKER_THREAD_POOL__
 #define __POKER_THREAD_POOL__
-#include <stdio.h>
+//#include <stdio.h>
 #include "queue.h"
 
 typedef enum {

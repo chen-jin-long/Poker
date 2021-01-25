@@ -23,8 +23,8 @@ class PokerTest : public testing::Test {
     pub[2]  = {4,'s'};
     pub[3]  = {3,'s'};
     pub[4]  = {7,'d'};
-    game.p[0] = p1;
-    game.p[1] = p2;
+    //game.p[0] = p1;
+    //game.p[1] = p2;
     game.pub = &pub;
     char color[4] = {'s','h','c','d'};   
     p = (Poker *)malloc(sizeof(Poker)*ONE_UNIT_POKER);
@@ -86,7 +86,8 @@ class PokerTest : public testing::Test {
     Poker max_chance[5] = {{0,'s'},{0,'s'},{0,'s'},{0,'s'},{0,'s'}};
     Person p1 = { 0,{{9,'s'},{10,'s'}} ,&max_chance};
     Poker pub[5] = { {9,'s'},{9,'s'},{9,'s'},{10,'s'},{10,'s'} };
-    Game game = {{p1,p1},&pub};
+    //Game game = {{p1,p1},&pub};
+    Game game = {&pub};
     EXPECT_EQ(POKER_TYPE_FOUR,is_four_poker(p1,&game));
     int i = 0;
     for(i = 0;i < 4;i++){
@@ -97,7 +98,7 @@ class PokerTest : public testing::Test {
   }
 
   TEST_F(PokerTest,DefaultConstructor) {
-    EXPECT_EQ(10,p1.id);
+    EXPECT_EQ(10,p1.clientSN);
   }
  
   TEST_F(PokerTest,wash_poker)

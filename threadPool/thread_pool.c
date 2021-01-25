@@ -28,10 +28,13 @@ static void * handle_queue_data(void *param)
             queue = queue_get(entry);
             if (queue && queue->data) {
                 pool->func_callback(queue->data);
+                // 数据由回调函数自己释放
+                /*
                 if (queue->data) {
                     free(queue->data);
                     queue->data = NULL;
                 }
+                */
                 if (queue) {
                     free(queue);
                     queue = NULL;

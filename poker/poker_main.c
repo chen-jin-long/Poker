@@ -15,8 +15,8 @@ int main(){
   Poker pub[5] = { {6,'s'},{2,'a'},{4,'s'},{3,'s'},{7,'d'} };
   //Poker pub[5] = { {1,'s'},{9,'s'},{10,'s'},{11,'s'},{13,'d'} };
   Game game;
-  game.p[0] = p1;
-  game.p[1] = p2;
+  //game.p[0] = p1;
+  //game.p[1] = p2;
   game.pub = &pub;
   int weight1 = 0,weight2 = 0,j = 0;
   //int result = is_flush_poker(p2,&game);

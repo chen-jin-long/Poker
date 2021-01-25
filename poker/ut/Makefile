@@ -10,8 +10,8 @@ all: poker_ut
 
 .PHONY : all
 
-poker_ut : poker_test.cc ../libpoker.a
-	$(CC) $(CFLAGS)  poker_test.cc ../libpoker.a -lgtest $(ROOT_DIR)/common/common.o -o $@ -g
+poker_ut : poker_test.cc
+	$(CC) $(CFLAGS)  poker_test.cc -L.. -lpoker -lgtest ../../common/common.o -o $@ -g
 
 clean :
 	rm poker_ut

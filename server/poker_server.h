@@ -6,8 +6,19 @@ extern "C" {
 
 #include<stdio.h>
 #include "common.h"
+#include "msg_json.h"
+
+typedef struct {
+    int clientSN;
+    int gameType;
+    int roomId;
+    int deskId;
+    // 玩家在每桌上的索引
+    int playerIndex;
+} GamePlayerDataBase;
 
 #define USER_ID_LEN 10
+/*
 typedef struct
 {
   int clientSN;
@@ -17,24 +28,29 @@ typedef struct
 
 }INFO;
 
-typedef struct msg
+typedef struct
 {
   int conn;
-  INFO info;
+  //INFO info;
+  Poker_Msg_Module *module;
 }Msg;
+*/
 
 typedef struct
 {
   int connList[MAX_DESK_PLAYER];
   int size;
+  PokerMsgBuf *msgBuf[MAX_DESK_PLAYER];
 }ConnData;
 
+/*
 typedef struct {
     int stage;
     int action;
     void (*handleActionCmd)(Msg *msg);
     void (*handleStageCmd)(Msg *msg);
 }ActionCmd;
+*/
 
 #if 0
 typedef struct

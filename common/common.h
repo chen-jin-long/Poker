@@ -6,8 +6,11 @@ extern "C" {
 
 #include<stdio.h>
 #include "poker.h"
+#include "msg_json.h"
 
-#define CLIENT_SN_LEN 4
+#define CLIENT_SN_LEN sizeof(int)
+#define MAX_RECV_LEN 2048
+
 
 #define POKER_ACTION_INIT  0
 #define POKER_ACTION_LOGIN 0x00000001
@@ -17,7 +20,11 @@ extern "C" {
 #define POKER_ACTION_TURN  0x00000005
 #define POKER_ACTION_RIVER 0x00000006
 #define POKER_ACTION_OVER  0x00000007
+#define POKER_ACTION_SIGNAL 0x00000008
+#define POKER_ACTION_MONEY  0x00000009
+#define POKER_ACTION_MAX    0x0000000A
 #define POKEK_ACTION_UNKNOWN 0xffffffff
+
 typedef enum {
   POKER_STAGE_LOGIN = 1,
   POKER_STAGE_PRIV,
@@ -28,6 +35,7 @@ typedef enum {
   POKER_STAGE_OVER,
   POKER_STAGE_UNKNOWN = 0xff,
 }POKER_STAGE;
+
 
 typedef struct
 {
@@ -59,10 +67,35 @@ typedef enum
 
 }POKER_RETURE_PARAM;
 
+
+typedef struct {
+  char remain_buf[MAX_RECV_LEN];
+  int remain_len;
+  //在Server端使用，对Client端意义不大
+  int connId;
+} PokerMsgBuf;
+
+
+typedef struct {
+  int clientId;
+  char action[128];
+  int sockFd;
+  //char remain_buf[MAX_RECV_LEN];
+  //int remain_len;
+  PokerMsgBuf *msgBuf;
+  pthread_mutex_t mutex;
+  pthread_cond_t cond;
+  int betMoney;
+} Client;
+
 void dumpPrivMsg(const char *msg);
 POKER_RETURE_PARAM get_poker(Poker *poker,char *out);
 POKER_RETURE_PARAM get_poker_msg(Poker *poker, int num, char *out);
 #define REQ_POKER_HEADER_LEN (sizeof(Req_Poker_Header))
+
+typedef void (* HandlerJsonMsgCb)(QueueMsg *queue_msg);
+void parseRecvMsg(PokerMsgBuf *msgBuf, char *recv_buf, int recv_len, HandlerJsonMsgCb handler);
+
 #ifdef __cplusplus
 }
 #endif
