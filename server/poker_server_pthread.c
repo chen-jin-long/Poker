@@ -295,12 +295,16 @@ void do_player_process(POKER_DESK * desk, int personIndex)
     //sleep(2);
 
     /* 当所有玩家都bet后，控制进入下一个阶段, 也可以根据personIndex是否为最后一个(MAX_POKER_DESK-1)来判断是否进入下一个阶段 */
-    if (isDeskNextStage(desk) == 0 && desk->stage != POKER_ACTION_RIVER) {
+    if (isDeskNextStage(desk) == 0) {
         // 所有玩家的状态一致时进入下一阶段，stage递增一个
         ++desk->stage;
-        sendPokerMsgToAll(desk, desk->stage);
-        index = 0;
-        //desk->person[index].status = desk->stage;
+        if (desk->stage == POKER_ACTION_OVER) {
+            return;
+        } else {
+            sendPokerMsgToAll(desk, desk->stage);
+            index = 0;
+            //desk->person[index].status = desk->stage;
+        }
     } else {
         /* 控制下一个玩家的动作 */
         if (personIndex < MAX_POKER_DESK - 1) {
@@ -532,6 +536,7 @@ void login_process(QueueMsg *queue_msg)
 void do_poker_judge_winer(POKER_DESK *desk)
 {
     int i = 0, result = 0;
+    printf("[%s] start....\n", __FUNCTION__);
     for (i = 0; i < MAX_DESK_PLAYER; i++) {
         result = fast_poker_algo(desk->person[i], desk->game);
         printf("[poker result] loc=%d, result = %d\n", i, result);
@@ -548,7 +553,7 @@ void do_poker_judge_winer(POKER_DESK *desk)
     } else {
         printf("====Winer is NULL====\n");
     }
-    desk->stage = POKER_STAGE_OVER;
+    //desk->stage = POKER_STAGE_OVER;
 }
 
 void do_send_priv_process(POKER_DESK *desk) {
@@ -572,7 +577,7 @@ void do_send_money_process(POKER_DESK *desk) {
 }
 void do_poker_process(POKER_DESK *desk, int personIndex)
 {
-    if (desk->stage >= POKER_ACTION_LOGIN && desk->stage < POKER_STAGE_OVER) {
+    if (desk->stage >= POKER_ACTION_LOGIN && desk->stage <= POKER_STAGE_OVER) {
         if (desk->stage == POKER_ACTION_LOGIN) {
             do_send_priv_process(desk);
             desk->stage = POKER_ACTION_PRIV;
@@ -580,11 +585,12 @@ void do_poker_process(POKER_DESK *desk, int personIndex)
             do_send_money_process(desk);
             //desk->stage = POKER_ACTION_BET;
         } 
-        if(desk->stage >= POKER_ACTION_PRIV) {
+        if(desk->stage >= POKER_ACTION_PRIV && desk->stage < POKER_ACTION_OVER) {
             do_player_process(desk, personIndex);
         }
-    } else if (desk->stage == POKER_STAGE_OVER) {
-       do_poker_judge_winer(desk); 
+        if (desk->stage == POKER_STAGE_OVER) {
+            do_poker_judge_winer(desk);
+        }
     } else {
         printf("[%s] stage[%d] is override.\n", __FUNCTION__, desk->stage);
     }
@@ -1032,6 +1038,7 @@ int  registerPlayer(GamePlayerDataBase **allPlayerInfo)
        playerDB[i].clientSN = i;
        playerDB[i].deskId = i/MAX_DESK_PLAYER;
        playerDB[i].playerIndex = DEFAULT_PLAYER_IN_DESK_POSITION;
+       playerDB[i].roomId = 0;
     }
     return 0;
 }

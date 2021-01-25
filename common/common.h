@@ -86,6 +86,7 @@ typedef struct {
   pthread_mutex_t mutex;
   pthread_cond_t cond;
   int betMoney;
+  int needBet;
 } Client;
 
 void dumpPrivMsg(const char *msg);

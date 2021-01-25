@@ -139,7 +139,10 @@ void *handleWrite(void *arg)
     memset(buf,0,TMP_BUF_LEN);
  #ifdef AUTO_CLIENT
     printf("before cond wait...\n");
-    pthread_cond_wait(&g_clt->cond, &g_clt->mutex);
+    // 防止虚假唤醒
+    while(g_clt->needBet == 0) {
+       pthread_cond_wait(&g_clt->cond, &g_clt->mutex);
+    }
     printf("getSendMsg...\n");
     //getSendMsg(buf, POKER_MSG_LEN, action, g_clt->clientId);
     snprintf(buf, sizeof(buf), "%d", g_clt->betMoney + INIT_BET_MONEY);
@@ -150,7 +153,6 @@ void *handleWrite(void *arg)
     }
 #endif
     char *betMsg = build_poker_msg(g_clt->clientId, "bet", buf);
-    pthread_mutex_unlock(&g_clt->mutex);
     int len = write(g_clt->sockFd, betMsg, strlen(betMsg));
     printf("send:%s,len=%d\n", betMsg, len);
     g_clt->betMoney += INIT_BET_MONEY;
@@ -159,6 +161,8 @@ void *handleWrite(void *arg)
       free(betMsg);
       betMsg = NULL;
     }
+    g_clt->needBet = 0;
+    pthread_mutex_unlock(&g_clt->mutex);
   }
 
 }
@@ -252,6 +256,7 @@ void handleJsonMsg(QueueMsg *queue_msg)
   if (queue_msg == NULL) {
     return;
   }
+  pthread_mutex_lock(&g_clt->mutex);
   module = queue_msg->module;
   if (module) {
     Poker_Msg_Header *head =  module->msgHeader;
@@ -267,6 +272,7 @@ void handleJsonMsg(QueueMsg *queue_msg)
         printf("[%s]body->msgType=%s\n", __FUNCTION__, body->msgType);
   #ifdef AUTO_CLIENT
         if (strncmp(body->msgType, "bet", strlen("bet")) == 0) {
+          g_clt->needBet = 1;
           printf("pthread_cond_signal start...\n");
           pthread_cond_signal(&g_clt->cond);
         } else if (strncmp(body->msgType, "signal", strlen("signal")) == 0) {
