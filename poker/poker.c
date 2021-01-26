@@ -753,22 +753,22 @@ int is_two_poker(Person person,Game *game){
 int fast_poker_algo(Person person,Game *game){
     sort_poker_game(&person,game);
     int result1 = is_flush_poker(person,game);//15,16,19,20
-    printf("[fast_poker_algo] result1 = %d\n" , result1);
+    printf("[%s] result1 = %d\n" , __FUNCTION__, result1);
     if(result1 >= POKER_TYPE_FLUSH_STRAIGHT){
       return result1;
     }else{
        int result2 = is_four_poker(person,game);//18
-       printf("[fast_poker_algo] result2 = %d\n" , result2);
+       printf("[%s] result2 = %d\n" , __FUNCTION__, result2);
        if(result2 == POKER_TYPE_FOUR)return POKER_TYPE_FOUR;
        else{
          int result3 = is_three_poker(person,game);//17,14
-         printf("[fast_poker_algo] result3 = %d\n" , result3);
+         printf("[%s] result3 = %d\n" , __FUNCTION__, result3);
          if(result3 == POKER_TYPE_FULLHOUSE)return POKER_TYPE_FULLHOUSE;
          if(result3 != POKER_TYPE_UNKNOW){
            return result3 > result1?result3:result1;
          }else{
            int result4 = is_two_poker(person,game);
-           printf("[fast_poker_algo] result4 = %d\n" , result4);
+           printf("[%s] result4 = %d\n" , __FUNCTION__, result4);
            return result4 > result1 ? result4:result1;//10,11,12,13
          }
        }

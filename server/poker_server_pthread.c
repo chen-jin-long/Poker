@@ -548,7 +548,7 @@ void do_poker_judge_winer(POKER_DESK *desk)
     Winer *head = NULL;
     head = getGameWiner(&desk->person[0]);
     if (head) {
-        printWiner(head);
+        printWiner(head, desk);
         freeAllWiner(head);
     } else {
         printf("====Winer is NULL====\n");
