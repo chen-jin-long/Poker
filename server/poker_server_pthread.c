@@ -20,6 +20,8 @@
 #define SERV_PORT 8000
 #define ALL_PLAYER_NUM_MAX (MAX_POKER_ROOM * MAX_POKER_DESK *MAX_DESK_PLAYER)
 #define BROADCAST_CLIENT_SN 0xFFFFFFFF
+#define IS_BROADCAST_MSG 1
+#define NOT_BROADCAST_MSG 0
 
 #define handle_error(msg) \
    do { perror(msg); exit(EXIT_FAILURE); } while (0)
@@ -44,7 +46,7 @@ char *g_turn_msg = NULL;
 char *g_river_msg = NULL;
 thread_pool_t *g_msgPool = NULL;
 
-typedef char * (* BUILD_POKER_MSG)(int conn,int *len);
+typedef char * (* BUILD_POKER_MSG)(Person *person,int *len);
 
 //void * handleMsg(void *arg);
 //void * handleAcceptReq(void *arg);
@@ -60,14 +62,16 @@ void sendMsgToAll(POKER_DESK *desk, const char *data);
 void sendPrivPoker(Person *person);
 void sendPokerMsgToUser(Person *person, int action);
 void sendPokerMsgToAll(POKER_DESK *desk, int action);
+void sendWinerBestChance(Winer *head, POKER_DESK *desk);
 
 int isAllLogin(POKER_DESK *desk);
 void do_poker_process(POKER_DESK * desk, int personIndex);
 //int findUserLoc(int conn,ConnData *data);
 char * build_priv_poker_msg(Person *person, int *msgLen);
-char * build_flop_poker_msg(int conn,int *len);
-char * build_turn_poker_msg(int conn,int *len);
-char * build_river_poker_msg(int conn,int *len);
+char * build_flop_poker_msg(Person *person,int *msgLen);
+char * build_turn_poker_msg(Person *person,int *msgLen);
+char * build_river_poker_msg(Person *person,int *msgLen);
+char * build_bestchance_poker_msg(Person *person, int *msgLen);
 //void dumpPrivMsg(const char *msg);
 
 Poker * dispatchPoker(int num);
@@ -281,6 +285,7 @@ const char * g_pokerStrAction[POKER_ACTION_MAX] = {
   [POKER_ACTION_TURN] = "turn",
   [POKER_ACTION_RIVER] = "river",
   [POKER_ACTION_OVER] = "over",
+  [POKER_ACTION_WINER] = "winer",
   [POKER_ACTION_SIGNAL] = "signal",
   [POKER_ACTION_MONEY] = "money",
 };
@@ -549,6 +554,7 @@ void do_poker_judge_winer(POKER_DESK *desk)
     head = getGameWiner(&desk->person[0]);
     if (head) {
         printWiner(head, desk);
+        sendWinerBestChance(head, desk);
         freeAllWiner(head);
     } else {
         printf("====Winer is NULL====\n");
@@ -669,6 +675,9 @@ BUILD_POKER_MSG getPokerMsgByType(int action)
     case POKER_ACTION_RIVER:
       msg = build_river_poker_msg;
       break;
+    case POKER_ACTION_WINER:
+      msg = build_bestchance_poker_msg;
+      break;
     default:
       msg = NULL;
       break;
@@ -721,26 +730,44 @@ void sendMsgToAll(POKER_DESK *desk, const char *data)
 
 }
 
-void sendPokerMsgToUser(Person *person, int action)
+char *getMsgData(int isBroadCast, Person *person, int action)
 {
-    char *msg = NULL;
-    int len = 0;
+    char *info = NULL;
+    char *msgData = NULL;
+    int len = 0, clientSN = -1;
     BUILD_POKER_MSG poker_msg = getPokerMsgByType(action);
     if (poker_msg == NULL) {
-      printf("action[%d] can not get method..\n", action);
-      return;
+        printf("[%s] poker_msg is NULL.\n", __FUNCTION__);
+        return NULL;
     }
-    msg = poker_msg(person->connId,&len);
-    char *msgData = build_poker_msg(person->clientSN, g_pokerStrAction[action], msg);
+    info = poker_msg(person, &len);
+    if (info == NULL) {
+         printf("[%s] info is NULL.\n", __FUNCTION__);
+        return NULL;
+    }
+    if (isBroadCast == IS_BROADCAST_MSG) {
+        clientSN = BROADCAST_CLIENT_SN;
+    } else {
+        clientSN = person->clientSN;
+    }
+    msgData = build_poker_msg(clientSN, g_pokerStrAction[action], info);
+    // 防止flop,turn,river公共牌的重复申请，使用g_flop_msg等全家变量，所以这里不能释放
+    if (info && (action == POKER_ACTION_PRIV || action == POKER_ACTION_WINER)) {
+        free(info);
+        info = NULL;
+    }
+    return msgData;
+}
+
+void sendPokerMsgToUser(Person *person, int action)
+{
+    char *msgData = getMsgData(NOT_BROADCAST_MSG, person, action);
     if (msgData) {
         sendMsgToUser(person->connId, msgData);
-        if (action == POKER_ACTION_PRIV) {
-            free(msgData);
-            free(msg);
-        }
+        free(msgData);
+        msgData = NULL;
 
     }
-
 }
 
 void sendPokerMsgToAll(POKER_DESK *desk, int action)
@@ -752,6 +779,25 @@ void sendPokerMsgToAll(POKER_DESK *desk, int action)
     //sendPrivPoker(g_conn_data->connList[i]);
     sendPokerMsgToUser(&desk->person[i], action);
   }
+}
+
+void sendWinerBestChance(Winer *head, POKER_DESK *desk)
+{
+    Winer *cur = head;
+    Person *person = NULL;
+    char *msgData = NULL;
+    while(cur){
+        person = &desk->person[cur->index];
+        msgData = getMsgData(IS_BROADCAST_MSG, person, POKER_ACTION_WINER);
+        if (msgData) {
+            sendMsgToAll(desk, msgData);
+            free(msgData);
+            msgData = NULL;
+        } else {
+            printf("[%s] msgData is NULL.\n", __FUNCTION__);
+        }
+        cur = cur->next;
+    }
 }
 
 Poker * dispatchPoker(int num)
@@ -856,7 +902,7 @@ char * build_priv_poker_msg(Person *person, int *msgLen)
   return buf;
 }
 
-char * build_flop_poker_msg(int conn,int *msgLen)
+char * build_flop_poker_msg(Person *person,int *msgLen)
 {
     if (g_flop_msg) {
         return g_flop_msg;
@@ -864,7 +910,7 @@ char * build_flop_poker_msg(int conn,int *msgLen)
     //int loc = findUserLoc(conn,&g_conn_data);
     Req_Poker_Header head = {0};
     head.command = POKER_ACTION_FLOP;
-    head.user_id = 0xff;
+    head.user_id = person->clientSN;
     head.len = POKER_FLOP_NUM;
     char *buf = getReqPokerMsg(&head, msgLen);
     if (buf) {
@@ -876,7 +922,7 @@ char * build_flop_poker_msg(int conn,int *msgLen)
     return buf;
 }
 
-char * build_turn_poker_msg(int conn,int *msgLen)
+char * build_turn_poker_msg(Person *person,int *msgLen)
 {
     if (g_turn_msg) {
         return g_turn_msg;
@@ -884,7 +930,7 @@ char * build_turn_poker_msg(int conn,int *msgLen)
     //int loc = findUserLoc(conn,&g_conn_data);
     Req_Poker_Header head = {0};
     head.command = POKER_ACTION_TURN;
-    head.user_id = 0xff;
+    head.user_id = person->clientSN;
     head.len = POKER_TURN_NUM;
     char *buf = getReqPokerMsg(&head, msgLen);
     if (buf) {
@@ -896,12 +942,12 @@ char * build_turn_poker_msg(int conn,int *msgLen)
     return buf;
 }
 
-char * build_river_poker_msg(int conn,int *msgLen)
+char * build_river_poker_msg(Person *person,int *msgLen)
 {
     //int loc = findUserLoc(conn,&g_conn_data);
     Req_Poker_Header head = {0};
     head.command = POKER_ACTION_RIVER;
-    head.user_id = 0xff;
+    head.user_id = person->clientSN;
     head.len = POKER_RIVER_NUM;
     if (g_river_msg) {
         return g_river_msg;
@@ -915,6 +961,23 @@ char * build_river_poker_msg(int conn,int *msgLen)
     }
     return buf;
 }
+
+char * build_bestchance_poker_msg(Person *person, int *msgLen)
+{
+    Req_Poker_Header head = {0};
+    head.command = POKER_ACTION_WINER;
+    head.user_id = person->clientSN;
+    head.len = PUB_LEN;
+
+    char *buf = getReqPokerMsg(&head, msgLen);
+    if (buf) {
+        //memcpy(buf+REQ_POKER_HEADER_LEN, g_game_pub+POKER_FLOP_NUM+POKER_TURN_NUM, POKER_RIVER_NUM);
+        get_poker_msg(*person->best_chance, PUB_LEN, buf+REQ_POKER_HEADER_LEN);
+        buf[*msgLen - 1] = '\n';
+    }
+    return buf;
+}
+
 
 void handleRecvMsg(void *arg)
 {
@@ -1070,5 +1133,6 @@ int isDeskNextStage(POKER_DESK *desk)
     }
     return 0;
 }
+
 
 
