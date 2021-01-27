@@ -3,7 +3,7 @@
 
 typedef struct {
     int clientSN;
-    int serialCode;
+    unsigned int serialCode;
     int msgTotalNum;
 }Poker_Msg_Header;
 

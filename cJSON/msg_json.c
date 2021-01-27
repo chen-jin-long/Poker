@@ -2,10 +2,13 @@
 #include<string.h>
 #include<stdlib.h>
 #include<time.h>
-#include "cJSON.h"
+#include <fcntl.h>
+#include <unistd.h>
 
+#include "cJSON.h"
 #include "msg_json.h"
 
+int getRandIntByDev(unsigned int *data);
 
 cJSON *build_poker_json_msg(Poker_Msg_Module *module)
 {
@@ -54,11 +57,18 @@ Poker_Msg_Module * build_poker_msg_module(int clientSN, const char *action, cons
     Poker_Msg_Body *body = NULL;
     Poker_Msg_Tail *tail = NULL;
     Poker_Msg_Module *module = NULL;
-
+    unsigned int seed = 0;
+    int ret = 0;
     if (action == NULL || info == NULL) {
         return NULL;
     }
-    srand(time(NULL));
+
+    ret = getRandIntByDev(&seed);
+    if (ret == 0) {
+        srand(seed);
+    } else {
+        srand(time(NULL));
+    }
 
     header = (Poker_Msg_Header *)malloc(sizeof(Poker_Msg_Header));
     if (header == NULL) {
@@ -393,4 +403,22 @@ error_head:
         header = NULL;
     }
     return NULL;
+}
+
+int getRandIntByDev(unsigned int *data)
+{
+    int ret = 0, rand = 0;
+    int fd = open("/dev/urandom", O_RDONLY);
+    if (fd < 0) {
+        return -1;
+    }
+    int result = read(fd, &rand, sizeof(rand));
+    if (result < 0) {
+        ret = -1;
+    } else {
+        *data = (unsigned int)rand;
+    }
+
+    close(fd);
+    return ret;
 }
