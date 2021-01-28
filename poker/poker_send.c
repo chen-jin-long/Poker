@@ -128,7 +128,7 @@ Poker * wash_poker()
 #endif
 
     if (p == NULL) {
-        printf("start srand poker game..\n");
+       printf("start srand poker game..\n");
        p = (Poker *)malloc(sizeof(Poker)*ONE_UNIT_DK_POKER);
        if(p != NULL)
        {

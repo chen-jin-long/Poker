@@ -3,6 +3,7 @@
 #include<string.h>
 #include<pthread.h>
 #include "poker_game.h"
+#include "poker_send.h"
 #include "common.h"
 #include "Utils.h"
 
@@ -10,6 +11,27 @@
 #define NOT_COMPARE_WITH_FAIL 0
 void initDeskStage(POKER_DESK *desk);
 void freeAllWiner(Winer *head);
+
+Poker * dispatchPoker(POKER_DESK *desk, int num)
+{
+    Poker *curr = NULL;
+    if (desk == NULL || desk->game == NULL || desk->game->deskPoker) {
+        return NULL;
+    }
+    pthread_rwlock_wrlock(&desk->deskLock);
+    if (desk->game->dispatchIndex < 0) {
+        goto error;
+    }
+    if (desk->game->dispatchIndex + num > ONE_UNIT_POKER) {
+        printf("[%s] no enough poker num, g_poker_index = %d, num =%d\n", __FUNCTION__, desk->game->dispatchIndex, num);
+        goto error;
+    }
+    curr = desk->game->deskPoker + desk->game->dispatchIndex;
+    desk->game->dispatchIndex += num;
+error:
+    pthread_rwlock_unlock(&desk->deskLock);
+    return curr;
+}
 
 int setupPokerRoom(POKER_ROOM *pr)
 {
@@ -43,16 +65,25 @@ POKER_DESK * setupPokerDesk(int desk_id,POKER_ROOM *proom)
      (proom->pdesk)[desk_id]->desk_id = desk_id;
      pthread_rwlock_init(&desk->deskLock,NULL);
 
-     initDeskStage((proom->pdesk)[desk_id]);
-     proom->pdesk[desk_id]->game = (Game *)malloc(sizeof(Game));
+     initDeskStage(desk);
+      Game *desk_game = (Game *)malloc(sizeof(Game));
+     if (desk_game) {
+        desk->game = desk_game;
+        desk_game->deskPoker = wash_poker();
+        if (desk_game->deskPoker == NULL) {
+            return NULL;
+        }
+        desk_game->dispatchIndex = 0;
+        memcpy(*desk_game->pub, dispatchPoker(desk, PUB_LEN), sizeof(Poker) * PUB_LEN);
+     }
       for (id = 0; id < MAX_DESK_PLAYER; id++) {
-        proom->pdesk[desk_id]->person[id].clientSN = 0;
-        proom->pdesk[desk_id]->person[id].connId = -1;
-        //proom->pdesk[desk_id]->person[id].priv = 
-        proom->pdesk[desk_id]->person[id].status = POKER_ACTION_INIT;
-        proom->pdesk[desk_id]->person[id].best_chance = (Poker (*)[PUB_LEN])malloc(sizeof(Poker)*PUB_LEN);
+        desk->person[id].clientSN = 0;
+        desk->person[id].connId = -1;
+        //desk->person[id].priv = 
+        desk->person[id].status = POKER_ACTION_INIT;
+        desk->person[id].best_chance = (Poker (*)[PUB_LEN])malloc(sizeof(Poker)*PUB_LEN);
       }
-     //proom->pdesk[desk_id]->game->pub = &g_game_pub;
+     //desk_game->pub = &g_game_pub;
   }
   else
   {
@@ -66,14 +97,14 @@ void initDeskStage(POKER_DESK *desk)
   desk->stage = POKER_STAGE_LOGIN;
   desk->betMoney = POKER_GAME_INIT_MONEY;
 }
-
+/*
 void InitGamePubPoker(Game *game, Poker (*pub)[PUB_LEN])
 {
      if (game != NULL) {
        game->pub = pub;
      }
 }
-
+*/
 /*
     attender[i][0] = connId;
     attender[i][1] = score;

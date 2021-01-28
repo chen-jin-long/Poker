@@ -34,7 +34,7 @@ typedef struct WinerTag{
 int setupPokerRoom(POKER_ROOM *pr);
 
 POKER_DESK * setupPokerDesk(int desk_id,POKER_ROOM *proom);
-void InitGamePubPoker(Game *game, Poker (*pub)[PUB_LEN]);
+//void InitGamePubPoker(Game *game, Poker (*pub)[PUB_LEN]);
 Winer * getGameWiner(Person *person);
 void printWiner(Winer *head, POKER_DESK *desk);
 void freeAllWiner(Winer *head);

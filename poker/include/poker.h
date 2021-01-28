@@ -34,6 +34,8 @@ typedef struct {
 typedef struct {
   //Person p[2];
   Poker (*pub)[PUB_LEN];
+  Poker *deskPoker;
+  int dispatchIndex;
   //int stage;
 }Game;
 
