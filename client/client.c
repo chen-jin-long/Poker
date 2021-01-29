@@ -301,5 +301,5 @@ void handleJsonMsg(QueueMsg *queue_msg)
     }
   }
   pthread_mutex_unlock(&g_clt->mutex);
-  printf("[%s] unlock..\n", __FUNCTION__);
+  //printf("[%s] unlock..\n", __FUNCTION__);
 }

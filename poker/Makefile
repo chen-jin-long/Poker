@@ -15,8 +15,8 @@ Utils.o : Utils.c
 
 poker.o : poker.c $(INCLUDE_DIR)/poker.h
 	$(CC) $(CFLAGS) -c poker.c -I$(INCLUDE_DIR)
-poker_send.o : poker_send.c  Utils.o poker.o
-	$(CC) $(CFLAGS) -c poker_send.c poker.o Utils.o -I$(INCLUDE_DIR) -I$(ROOT_DIR)/game/ -DFIXED_POKER
+poker_send.o : poker_send.c
+	$(CC) $(CFLAGS) -c poker_send.c  -I$(INCLUDE_DIR) -I$(ROOT_DIR)/game/ -DFIXED_POKER
 libpoker.a : Utils.o poker.o poker_send.o
 	ar -rv libpoker.a Utils.o poker.o poker_send.o
 
