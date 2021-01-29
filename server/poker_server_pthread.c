@@ -18,7 +18,6 @@
 
 #define MAX_LINE 256
 #define SERV_PORT 8000
-#define ALL_PLAYER_NUM_MAX (MAX_POKER_ROOM * MAX_POKER_DESK *MAX_DESK_PLAYER)
 #define BROADCAST_CLIENT_SN 0xFFFFFFFF
 #define IS_BROADCAST_MSG 1
 #define NOT_BROADCAST_MSG 0
@@ -981,7 +980,7 @@ void * handleSelectAcceptReq(void *arg)
     fd_set read_fds;
     fd_set all_fds;
     int client_sockfd, maxFd, server_sockfd = -1;
-    int clientFd[MAX_DESK_PLAYER];
+    int clientFd[ALL_PLAYER_NUM_MAX];
     int result = -1, index = 0, i = 0;
     struct sockaddr_in client_address;
     int client_len = sizeof(client_address);
@@ -1002,7 +1001,7 @@ void * handleSelectAcceptReq(void *arg)
         FD_ZERO(&read_fds);
         FD_SET(server_sockfd, &read_fds);
 
-        for (i = 0; i < MAX_DESK_PLAYER; i++) {
+        for (i = 0; i < ALL_PLAYER_NUM_MAX; i++) {
             if (clientFd[i] > 0) {
                 FD_SET(clientFd[i], &read_fds);
             }
@@ -1019,7 +1018,7 @@ void * handleSelectAcceptReq(void *arg)
                 printf("accept error, client_sockfd = %d\n", client_sockfd);
                 continue;
             }
-            if (index < MAX_DESK_PLAYER) {
+            if (index < ALL_PLAYER_NUM_MAX) {
                 clientFd[index] = client_sockfd;
                 index++;
                 if (g_conn_data) {

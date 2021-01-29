@@ -38,9 +38,9 @@ typedef struct
 
 typedef struct
 {
-  int connList[MAX_DESK_PLAYER];
+  int connList[ALL_PLAYER_NUM_MAX];
   int size;
-  PokerMsgBuf *msgBuf[MAX_DESK_PLAYER];
+  PokerMsgBuf *msgBuf[ALL_PLAYER_NUM_MAX];
 }ConnData;
 
 /*
