@@ -6,6 +6,7 @@
 #include<string.h>
 #include<signal.h>
 #include<pthread.h>
+#include <sys/time.h>
 #include "common.h"
 #include "msg_json.h"
 
@@ -13,6 +14,9 @@
 #define SERV_PORT 8000
 #define POKER_MSG_LEN 14
 #define INIT_BET_MONEY 100
+#define CLIENT_HEARTBEAT_TIME 5
+#define CLIENT_START_LOOP_TIME 2
+#define CLIENT_STOP_LOOP_TIME 0
 
 #define handle_error(msg) \
   do { \
@@ -21,6 +25,7 @@
    }while(0)
 
 void stop(int signo);
+void signalHandler(int signo);
 void *handleRecv(void *arg);
 void *handleWrite(void *arg);
 void handleJsonMsg(QueueMsg *queue_msg);
@@ -35,6 +40,16 @@ void handleJsonMsg(QueueMsg *queue_msg);
 //char g_clientSN[CLIENT_SN_LEN] = {0};
 
 Client * g_clt = NULL;
+struct itimerval new_value, old_value;
+
+void setLoopTime(unsigned int loopTime)
+{
+    new_value.it_value.tv_sec = loopTime;
+    new_value.it_value.tv_usec = 0;
+    new_value.it_interval.tv_sec = loopTime;
+    new_value.it_interval.tv_usec = 0;
+    setitimer(ITIMER_REAL, &new_value, &old_value);
+}
 
 int main(int argc,char *argv[])
 {
@@ -74,7 +89,7 @@ int main(int argc,char *argv[])
   pthread_cond_init(&g_clt->cond, NULL);
   g_clt->sockFd = socket(AF_INET,SOCK_STREAM,0);
   g_clt->msgBuf->connId = g_clt->sockFd;
-  signal(SIGINT, stop);
+  signal(SIGINT, signalHandler);
   memset(&server, 0, sizeof(server));
   server.sin_family = AF_INET;
   server.sin_port = htons(SERV_PORT);
@@ -109,6 +124,11 @@ int main(int argc,char *argv[])
   {
      handle_error("pthread_create write failed..\n");
   }
+
+  signal(SIGALRM, signalHandler);
+
+  setLoopTime(CLIENT_START_LOOP_TIME);
+
   for(;;);
   printf("finished ....\n");
   stop(0);
@@ -127,44 +147,75 @@ void stop(int signo)
     free(g_clt);
     g_clt = NULL;
   }
-
   exit(0);
+}
+
+void signalHandler(int signo)
+{
+    time_t now = time(NULL);
+    switch (signo){
+        case SIGALRM:
+            printf("Caught the SIGALRM signal!\n");
+            pthread_mutex_lock(&g_clt->mutex);
+            if (now - g_clt->lastMsgTime >= CLIENT_HEARTBEAT_TIME) {
+                g_clt->needHeartBeat = 1;
+            }
+            pthread_cond_signal(&g_clt->cond);
+            pthread_mutex_unlock(&g_clt->mutex);
+            printf("[%s] SIGALRM done.\n", __FUNCTION__);
+            break;
+        case SIGINT:
+          stop(signo);
+          break;
+   }
 }
 
 void *handleWrite(void *arg)
 {
   char buf[TMP_BUF_LEN] = {0};
+  char *betMsg = NULL;
+  int len = 0;
+  time_t time_stamp = 0;
   while(1) {
-    pthread_mutex_lock(&g_clt->mutex);
-    memset(buf,0,TMP_BUF_LEN);
- #ifdef AUTO_CLIENT
-    printf("before cond wait...\n");
-    // 防止虚假唤醒
-    while(g_clt->needBet == 0) {
-       pthread_cond_wait(&g_clt->cond, &g_clt->mutex);
+      pthread_mutex_lock(&g_clt->mutex);
+      memset(buf,0,TMP_BUF_LEN);
+    #ifdef AUTO_CLIENT
+      printf("before cond wait...\n");
+      // 防止虚假唤醒
+      while(g_clt->needBet == 0 && g_clt->needHeartBeat == 0) {
+          pthread_cond_wait(&g_clt->cond, &g_clt->mutex);
+      }
+      printf("getSendMsg...\n");
+      //getSendMsg(buf, POKER_MSG_LEN, action, g_clt->clientId);
+      snprintf(buf, sizeof(buf), "%d", g_clt->betMoney + INIT_BET_MONEY);
+    #else
+      fgets(buf,TMP_BUF_LEN,stdin);
+      if(!strncmp(buf,"closed",strlen("closed"))){
+          break;
+      }
+    #endif
+    if (g_clt->needBet) {
+      betMsg = build_poker_msg(g_clt->clientId, "bet", buf);
+      g_clt->betMoney += INIT_BET_MONEY;
+    } else if (g_clt->needHeartBeat) {
+      time_stamp = time(NULL);
+      memset(buf, 0, sizeof(buf));
+      snprintf(buf, sizeof(buf), "%d", (int)time_stamp);
+      betMsg = build_poker_msg(g_clt->clientId, "heartbeat", buf);
     }
-    printf("getSendMsg...\n");
-    //getSendMsg(buf, POKER_MSG_LEN, action, g_clt->clientId);
-    snprintf(buf, sizeof(buf), "%d", g_clt->betMoney + INIT_BET_MONEY);
-#else
-    fgets(buf,TMP_BUF_LEN,stdin);
-    if(!strncmp(buf,"closed",strlen("closed"))){
-       break;
-    }
-#endif
-    char *betMsg = build_poker_msg(g_clt->clientId, "bet", buf);
-    int len = write(g_clt->sockFd, betMsg, strlen(betMsg));
-    printf("send:%s,len=%d\n", betMsg, len);
-    g_clt->betMoney += INIT_BET_MONEY;
-    memset(buf, 0, sizeof(buf));
-    if (betMsg) {
+
+    if (betMsg && strlen(betMsg) > 0) {
+      len = write(g_clt->sockFd, betMsg, strlen(betMsg));
+      printf("send:%s,len=%d\n", betMsg, len);
       free(betMsg);
       betMsg = NULL;
     }
+    time_stamp = time(NULL);
+    g_clt->lastMsgTime = time_stamp;
     g_clt->needBet = 0;
+    g_clt->needHeartBeat = 0;
     pthread_mutex_unlock(&g_clt->mutex);
   }
-
 }
 
 void *handleRecv(void *arg)
@@ -273,6 +324,7 @@ void handleJsonMsg(QueueMsg *queue_msg)
   #ifdef AUTO_CLIENT
         if (strncmp(body->msgType, "bet", strlen("bet")) == 0) {
           g_clt->needBet = 1;
+          g_clt->lastMsgTime = time(NULL);
           printf("pthread_cond_signal start...\n");
           pthread_cond_signal(&g_clt->cond);
         } else if (strncmp(body->msgType, "signal", strlen("signal")) == 0) {
@@ -287,6 +339,10 @@ void handleJsonMsg(QueueMsg *queue_msg)
         } else if (strncmp(body->msgType, "money", strlen("money")) == 0) {
            g_clt->betMoney = atoi(body->msgValue);
            printf("betMoney = %d\n", g_clt->betMoney);
+        } else if (strncmp(body->msgType, "winer", strlen("winer")) == 0) {
+                printf("[%s] recv winer...\n", __FUNCTION__);
+                // 取消定时器发送心跳
+               setLoopTime(CLIENT_STOP_LOOP_TIME);
         }
   #endif
       }

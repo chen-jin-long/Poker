@@ -48,8 +48,11 @@ int setupPokerRoom(POKER_ROOM *pr)
       for(deskId = 0;deskId < MAX_POKER_DESK;deskId++)
       {
          //(pr[roomId].pdesk)[deskId] = setupPokerDesk(deskId, pr);
-         setupPokerDesk(deskId, &pr[roomId]);
-         pr[roomId].pdesk[deskId]->stage = POKER_ACTION_LOGIN;
+         if (setupPokerDesk(deskId, &pr[roomId])) {
+             pr[roomId].pdesk[deskId]->stage = POKER_ACTION_LOGIN;
+         } else {
+            pr[roomId].pdesk[deskId]->stage = POKEK_ACTION_UNKNOWN;
+         }
       }
   }
   return 0;
@@ -86,13 +89,22 @@ POKER_DESK * setupPokerDesk(int desk_id,POKER_ROOM *proom)
             return NULL;
         }
      }
+
+      desk->psnConn = (PersonConn *)malloc(sizeof(PersonConn)*MAX_DESK_PLAYER);
+      if (desk->psnConn) {
+          memset(desk->psnConn, 0, sizeof(PersonConn)*MAX_DESK_PLAYER);
+      }
+
       for (id = 0; id < MAX_DESK_PLAYER; id++) {
         desk->person[id].clientSN = 0;
         desk->person[id].connId = -1;
         //desk->person[id].priv = 
         desk->person[id].status = POKER_ACTION_INIT;
         desk->person[id].best_chance = (Poker (*)[PUB_LEN])malloc(sizeof(Poker)*PUB_LEN);
+        pthread_rwlock_init(&(desk->psnConn[id].stateLock), NULL);
+        desk->psnConn[id].heartState = POKER_CONN_ENABLE;
       }
+
      //game->pub = &g_game_pub;
   }
   else
@@ -101,6 +113,15 @@ POKER_DESK * setupPokerDesk(int desk_id,POKER_ROOM *proom)
   }
   return (proom->pdesk)[desk_id];
 }
+
+/*
+void freePokerDesk(POKER_DESK *desk)
+{
+    if (desk) {
+
+    }
+}
+*/
 
 void initDeskStage(POKER_DESK *desk)
 {
@@ -269,6 +290,7 @@ Winer * CompareOneFlagScore(int level, GameFlagRest *scoreFlag, int count)
     }
     Winer *win = (Winer *)malloc(sizeof(Winer));
     if (win != NULL) {
+        memset(win, 0, sizeof(Winer));
         win->index = index;
         win->score = max;
         win->next = NULL;

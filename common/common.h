@@ -23,8 +23,13 @@ extern "C" {
 #define POKER_ACTION_WINER 0x00000008
 #define POKER_ACTION_SIGNAL 0x00000009
 #define POKER_ACTION_MONEY  0x0000000A
-#define POKER_ACTION_MAX    0x0000000B
+#define POKER_ACTION_HEARTBEAT 0x0000000B
+#define POKER_ACTION_MAX       0x0000000C
 #define POKEK_ACTION_UNKNOWN 0xffffffff
+
+
+#define POKER_CONN_ENABLE 1
+#define POKER_CONN_DISABLE 0
 
 typedef enum {
   POKER_STAGE_LOGIN = 1,
@@ -88,6 +93,8 @@ typedef struct {
   pthread_cond_t cond;
   int betMoney;
   int needBet;
+  int needHeartBeat;
+  time_t lastMsgTime;
 } Client;
 
 void dumpPrivMsg(const char *msg);

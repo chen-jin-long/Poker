@@ -8,6 +8,26 @@
 #define ALL_PLAYER_NUM_MAX (MAX_POKER_ROOM * MAX_POKER_DESK *MAX_DESK_PLAYER)
 #define POKER_GAME_INIT_MONEY 10
 
+typedef struct {
+    int curPlayer;
+    int ConnDeskState;
+    int gameDeskState;
+    int heartDeskState;
+    time_t startGameTime;
+} DeskMonitor;
+
+typedef struct {
+    int connState;
+    int heartState;
+    unsigned int heartCount;
+    //int gameState;
+    time_t lasgMsgTime;
+    time_t heartTime;
+    time_t loginTime;
+    time_t leaveTime;
+    pthread_rwlock_t stateLock;
+} PersonConn;
+
 typedef struct{
   int desk_id;
   //char *player[MAX_DESK_PLAYER];
@@ -17,6 +37,8 @@ typedef struct{
   Game *game;
   int winer;
   //POKER_PUBLIC
+  PersonConn *psnConn;
+  DeskMonitor deskMonitor;
   pthread_rwlock_t deskLock;
 }POKER_DESK;
 

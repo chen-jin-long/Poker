@@ -6,6 +6,7 @@
 #include<unistd.h>
 #include<pthread.h> 
 #include<signal.h>
+#include<limits.h>
 
 #include "poker_game.h"
 #include "poker_server.h"
@@ -21,6 +22,7 @@
 #define BROADCAST_CLIENT_SN 0xFFFFFFFF
 #define IS_BROADCAST_MSG 1
 #define NOT_BROADCAST_MSG 0
+#define MAX_HEART_DELTA_TIME 20
 
 #define handle_error(msg) \
    do { perror(msg); exit(EXIT_FAILURE); } while (0)
@@ -43,6 +45,10 @@ typedef char * (* BUILD_POKER_MSG)(POKER_DESK *desk, Person *person, int *len);
 //void * handleMsg(void *arg);
 //void * handleAcceptReq(void *arg);
 void * handleSelectAcceptReq(void *arg);
+void * monitorGameProcess(void *arg);
+
+int getPersonConnState(PersonConn *conn);
+
 //int parseRecvInfo(const char *buf,INFO *info);
 void login_process(QueueMsg *queue_msg);
 void doInfoAction(QueueMsg *msg);
@@ -71,7 +77,7 @@ Poker * dispatchPoker(POKER_DESK *desk, int num);
 int  registerPlayer(GamePlayerDataBase **allPlayerInfo);
 int matchPlayerClientSN(Poker_Msg_Module *module, GamePlayerDataBase * playerInfo);
 void doInfoActionByThreadPool(void *param);
-int isDeskNextStage(POKER_DESK *desk);
+int isDeskNextStage(POKER_DESK *desk, int personIndex);
 int putMsgInfoToThreadPool(QueueMsg *msg);
 void do_send_money_process(POKER_DESK *desk);
 
@@ -92,7 +98,8 @@ int main()
 {
     struct sockaddr_in server,client;
     int connectfd, client_addr_len, ret = -1;
-    pthread_t ptdAccept = -1;;
+    pthread_t ptdAccept = -1;
+    pthread_t ptdMonitor = -1;
     socklen_t clientaddr_len;
     char ip[INET_ADDRSTRLEN] = {0};
     //char buf[MAX_LINE];
@@ -142,13 +149,16 @@ int main()
     server.sin_port = htons(SERV_PORT);
     inet_ntop(AF_INET, &server.sin_addr, ip, sizeof(ip));
     printf("new client IP is (%s)\n", ip);
-    if(-1 == bind(listenfd,(struct sockaddr *)&server,sizeof(server)))
-    {
+    if(-1 == bind(listenfd,(struct sockaddr *)&server,sizeof(server))) {
         handle_error("bind");
     } 
-    if (-1 == listen(listenfd,MAX_DESK_PLAYER*MAX_POKER_DESK*MAX_POKER_ROOM))
-    {
+    if (-1 == listen(listenfd,MAX_DESK_PLAYER*MAX_POKER_DESK*MAX_POKER_ROOM)) {
         handle_error("listen");
+    }
+
+    if (pthread_create(&ptdMonitor, NULL, monitorGameProcess, g_proom)) {
+        printf("pthread_create monitor failed!\n");
+        exit(-1);
     }
 
     printf("Accetpting connections..\n");
@@ -157,8 +167,7 @@ int main()
         exit(-1);
     }
 
-    while(1)
-    {
+    while(1) {
        sleep(2);
     }
 
@@ -282,19 +291,37 @@ const char * g_pokerStrAction[POKER_ACTION_MAX] = {
   [POKER_ACTION_WINER] = "winer",
   [POKER_ACTION_SIGNAL] = "signal",
   [POKER_ACTION_MONEY] = "money",
+  [POKER_ACTION_HEARTBEAT] = "heartbeat",
 };
 
+
+int getNextValidPlayerIndex(POKER_DESK *desk, int personIndex, int *index)
+{
+    int i = 0;
+    if (desk == NULL || index == NULL) {
+        return -1;
+    }
+
+    for (i = personIndex +  1; i < MAX_DESK_PLAYER; i++) {
+        if (getPersonConnState(&desk->psnConn[i]) == POKER_CONN_ENABLE) {
+            *index = i;
+            return 0;
+        }
+    }
+
+    return -1;
+}
 
 void do_player_process(POKER_DESK * desk, int personIndex)
 {
     char info[MAX_LINE] = {0};
     char *dataMsg = NULL;
-    int index = personIndex;
+    int index = -1;
     /* 沃日，这里的sleep怎么影响这么大，多线程编程测试通过不等于完全正确，有可能条件不满足，无法暴露 */
     //sleep(2);
 
     /* 当所有玩家都bet后，控制进入下一个阶段, 也可以根据personIndex是否为最后一个(MAX_POKER_DESK-1)来判断是否进入下一个阶段 */
-    if (isDeskNextStage(desk) == 0) {
+    if (isDeskNextStage(desk, personIndex) == 0) {
         // 所有玩家的状态一致时进入下一阶段，stage递增一个
         ++desk->stage;
         if (desk->stage == POKER_ACTION_OVER) {
@@ -306,11 +333,14 @@ void do_player_process(POKER_DESK * desk, int personIndex)
         }
     } else {
         /* 控制下一个玩家的动作 */
-        if (personIndex < MAX_POKER_DESK - 1) {
-            index = personIndex + 1;
-        } else {
-            printf("[%s] [%d]should't run this line.\n", __FUNCTION__, personIndex);
+        if (getNextValidPlayerIndex(desk, personIndex, &index) != 0) {
+            printf("[%s] getNextValidPlayerIndex error.\n", __FUNCTION__);
+            return;
         }
+    }
+
+    if (index < 0 || index >= MAX_DESK_PLAYER) {
+        printf("[%s] error index=%d\n", __FUNCTION__, index);
     }
     snprintf(info, sizeof(info), "please bet for %s\n", g_pokerStrAction[desk->stage]);
     dataMsg = build_poker_msg(desk->person[index].clientSN, g_pokerStrAction[POKER_ACTION_BET], info);
@@ -401,13 +431,10 @@ void login_process(QueueMsg *queue_msg)
     printf("%s..\n", __FUNCTION__);
     //pthread_rwlock_rdlock(&rwlock);
     int i = 0, roomId = 0, deskId = 0;
-    //int playerIndex = -1;
     GamePlayerDataBase *player = NULL;
     POKER_DESK *desk = NULL;
-    //char *dataMsg = NULL;
-    //Poker_Msg_Module *module;
-    //pthread_rwlock_unlock(&rwlock);
-    //pthread_rwlock_wrlock(&rwlock);
+    PersonConn *conn = NULL;
+
     if (queue_msg == NULL) {
         printf("[%s] msg is NULL.\n", __FUNCTION__);
     }
@@ -447,28 +474,7 @@ void login_process(QueueMsg *queue_msg)
             //printf("status = %d\n", desk->person[0].status);
             //playerIndex = player->playerIndex;
             desk->person[player->playerIndex].status = POKER_ACTION_LOGIN;
-            //sendPrivPoker(&(desk->person[playerIndex]));
-            //desk->person[playerIndex].status = POKER_ACTION_PRIV;
-            /* 每桌的最后一个玩家登陆后，现在开始从第一个玩家开始处理*/
-            /*
-            if (playerIndex == MAX_DESK_PLAYER-1) {
-                playerIndex = 0;
-                desk->person[playerIndex].status = POKER_ACTION_BET;
-                goto process_tag;
-            }
-            */
-            /*
-            if (isDeskNextStage(desk, desk->person[playerIndex].status) == 0) {
-                desk->stage = POKER_STAGE_FLOP;
-                snprintf(info, sizeof(info), "please bet for %s...\n", g_pokerStrAction[desk->stage]);
-                char *msgData = build_poker_msg(desk->person[0].clientSN, g_pokerStrAction[POKER_ACTION_BET], info);
-                if (msgData) {
-                    sendMsgToUser(desk->person[0].connId, msgData);
-                    free(msgData);
-                    msgData = NULL;
-                }
-            }
-            */
+            desk->psnConn[player->playerIndex].loginTime = time(NULL);
         } else if (strncmp(body->msgType, g_pokerStrAction[POKER_ACTION_BET], strlen(g_pokerStrAction[POKER_ACTION_BET])) == 0) {
             // 控制玩家的状态
             desk->person[player->playerIndex].status = desk->stage;
@@ -476,17 +482,36 @@ void login_process(QueueMsg *queue_msg)
             updateBetMoney(desk, (unsigned int)money);
             do_send_money_process(desk);
             //do_poker_process(desk, playerIndex);
+        } else if (strncmp(body->msgType, g_pokerStrAction[POKER_ACTION_HEARTBEAT], strlen(g_pokerStrAction[POKER_ACTION_HEARTBEAT])) == 0) {
+            printf("[%s] heartBeat.\n", __FUNCTION__);
+            conn = &desk->psnConn[player->playerIndex];
+            if (conn) {
+                pthread_rwlock_wrlock(&conn->stateLock);
+                conn->heartCount++;
+                if (conn->heartCount == LONG_MAX) {
+                    conn->heartCount=1;
+                }
+                conn->heartTime = (time_t)atol(body->msgValue);
+                printf("[%s]conn addr=%p, curTime=%ld\n", __FUNCTION__, conn, time(NULL));
+                printf("[%s]conn->heartTime=%ld, player->playerIndex=%d\n", __FUNCTION__, conn->heartTime, player->playerIndex);
+                pthread_rwlock_unlock(&conn->stateLock);
+            }
+            goto end_process;
         } else {
             printf("[%s] no msgtype:%s\n", __FUNCTION__, body->msgType);
         }
-
-//process_tag:
         if (isAllLogin(desk) == TRUE) {
             printf("all users login success...\n");
+            conn = &desk->psnConn[player->playerIndex];
+            if (conn) {
+                pthread_rwlock_wrlock(&conn->stateLock);
+                conn->lasgMsgTime = time(NULL);
+                pthread_rwlock_unlock(&conn->stateLock);
+            }
             do_poker_process(desk, player->playerIndex);
-
         }
     }
+end_process:
     pthread_rwlock_unlock(&desk->deskLock);
 
     if (queue_msg) {
@@ -497,39 +522,6 @@ void login_process(QueueMsg *queue_msg)
         free(queue_msg);
         queue_msg = NULL;
     }
-    #if 0
-    pthread_rwlock_wrlock(&desk->deskLock);
-    
-    if (playerIndex != DEFAULT_PLAYER_IN_DESK_POSITION && isAllLogin(desk) == TRUE) {
-        printf("all users login success...\n");
-        updateBetMoney(desk, playerIndex, msg);
-        do_poker_process(desk, playerIndex);
-    } else {
-        if (playerIndex == DEFAULT_PLAYER_IN_DESK_POSITION) {
-            player->playerIndex = do_login_dispatch_poker(desk, msg);
-            printf("status = %d\n", desk->person[0].status);
-            playerIndex = player->playerIndex;
-            sendPrivPoker(&(desk->person[playerIndex]));
-
-            if (isDeskNextStage(desk, desk->person[playerIndex].status) == 0)
-            {
-                desk->stage = POKER_STAGE_FLOP;
-                snprintf(info, sizeof(info), "please bet for %s...\n", g_pokerStrAction[desk->stage]);
-                char *msgData = build_poker_msg(desk->person[0].clientSN, g_pokerStrAction[POKER_ACTION_BET], info);
-                if (msgData) {
-                    sendMsgToUser(desk->person[0].connId, msgData);
-                    free(msgData);
-                    msgData = NULL;
-                }
-            }
-
-        } else {
-            printf("[%s] person_db_index = %d have loginned.\n", __FUNCTION__, person_db_index);
-        }
-    }
-
-    pthread_rwlock_unlock(&desk->deskLock);
-    #endif
 }
 
 void do_poker_judge_winer(POKER_DESK *desk)
@@ -537,12 +529,14 @@ void do_poker_judge_winer(POKER_DESK *desk)
     int i = 0, result = 0;
     printf("[%s] start....\n", __FUNCTION__);
     for (i = 0; i < MAX_DESK_PLAYER; i++) {
-        result = fast_poker_algo(desk->person[i], desk->game);
-        printf("[poker result] loc=%d, result = %d\n", i, result);
-        sort_poker_bestChance(desk->person[i].best_chance);
-        set_bestChance_color(&desk->person[i], desk->game, result);
-        desk->person[i].gameScore = result;
-        print_BestChance((Poker *)(desk->person[i].best_chance), PUB_LEN);
+        if (getPersonConnState(&desk->psnConn[i]) == POKER_CONN_ENABLE) {
+            result = fast_poker_algo(desk->person[i], desk->game);
+            printf("[poker result] loc=%d, result = %d\n", i, result);
+            sort_poker_bestChance(desk->person[i].best_chance);
+            set_bestChance_color(&desk->person[i], desk->game, result);
+            desk->person[i].gameScore = result;
+            print_BestChance((Poker *)(desk->person[i].best_chance), PUB_LEN);
+        }
     }
     Winer *head = NULL;
     head = getGameWiner(&desk->person[0]);
@@ -560,8 +554,12 @@ void do_send_priv_process(POKER_DESK *desk) {
     int i = 0;
     for(i = 0; i < MAX_DESK_PLAYER; i++) {
         //sendPrivPoker(desk, &(desk->person[i]));
-        sendPokerMsgToUser(desk, &desk->person[i], POKER_ACTION_PRIV);
-        desk->person[i].status = POKER_ACTION_PRIV;
+        if (getPersonConnState(&desk->psnConn[i]) == POKER_CONN_ENABLE) {
+            sendPokerMsgToUser(desk, &desk->person[i], POKER_ACTION_PRIV);
+            desk->person[i].status = POKER_ACTION_PRIV;
+        } else {
+            printf("[%s] connection heartbeat timeout.\n", __FUNCTION__);
+        }
     }
 }
 
@@ -826,13 +824,13 @@ int isAllLogin(POKER_DESK *desk)
     int result = TRUE, i = 0;
     for(i = 0; i < MAX_DESK_PLAYER; i++)
     {
-        int status = desk->person[i].status;
-        if(status == POKER_ACTION_INIT)
+        if(desk->person[i].status == POKER_ACTION_INIT)
         {
             result = FALSE;
             break;
         }
     }
+    printf("[%s]\n", __FUNCTION__);
     return result;
 }
 
@@ -1043,6 +1041,60 @@ void * handleSelectAcceptReq(void *arg)
     return  NULL;
 }
 
+int getPersonConnState(PersonConn *conn)
+{
+    pthread_rwlock_rdlock(&conn->stateLock);
+    if (conn->heartState == POKER_CONN_ENABLE) {
+        pthread_rwlock_unlock(&conn->stateLock);
+        return POKER_CONN_ENABLE;
+    }
+    pthread_rwlock_unlock(&conn->stateLock);
+    return POKER_CONN_DISABLE;
+}
+
+void * monitorGameProcess(void *arg)
+{
+    POKER_ROOM *room = NULL;
+    int roomIndex = 0;
+    int deskIndex = 0;
+    int playerIndex = 0;
+    int deltaTime = 0;
+    time_t curTime = 0;
+
+    PersonConn *conn = NULL;
+    if (arg) {
+        room = (POKER_ROOM *)arg;
+    } else {
+        pthread_exit(0);
+    }
+    while (1) {
+        for (roomIndex = 0; roomIndex < MAX_POKER_ROOM; roomIndex++) {
+            for (deskIndex = 0; deskIndex < MAX_POKER_DESK; deskIndex++) {
+                for (playerIndex = 0; playerIndex < MAX_DESK_PLAYER; playerIndex++) {
+                    if (room[roomIndex].pdesk[deskIndex]->person[playerIndex].status >= POKER_ACTION_LOGIN) {
+                        conn = &(room[roomIndex].pdesk[deskIndex]->psnConn[playerIndex]);
+                        if (conn && conn->heartCount > 0) {
+                            pthread_rwlock_wrlock(&conn->stateLock);
+                            curTime = time(NULL);
+                            //printf("[%s-%ld]conn addr=%p, heartTime=%ld\n", __FUNCTION__, curTime, conn, conn->heartTime);
+                            deltaTime = abs(curTime - conn->heartTime);
+                            conn->heartState = (deltaTime > MAX_HEART_DELTA_TIME) ? POKER_CONN_DISABLE:POKER_CONN_ENABLE;
+                            if (conn->heartState == POKER_CONN_DISABLE && conn->heartTime > 0) {
+                                //printf("Room[%d].Desk[%d].Player[%d].heartState=%d, curTime=%ld, heartTime=%ld\n", roomIndex, deskIndex, playerIndex, conn->heartState, curTime, conn->heartTime);
+                            }
+                            curTime = 0;
+                            pthread_rwlock_unlock(&conn->stateLock);
+                        }
+                        conn = NULL;
+                    }
+                }
+            }
+        }
+        //sleep(5);
+    }
+    return NULL;
+}
+
 int  registerPlayer(GamePlayerDataBase **allPlayerInfo)
 {
     int i = 0;
@@ -1081,16 +1133,21 @@ int matchPlayerClientSN(Poker_Msg_Module *module, GamePlayerDataBase * playerInf
     return -1;
 }
 
-int isDeskNextStage(POKER_DESK *desk)
+int isDeskNextStage(POKER_DESK *desk, int personIndex)
 {
-    int i = 0;
-    for(i = 0; i < MAX_DESK_PLAYER; i++)
-    {
-        if (desk->person[i].status != desk->stage) {
-            printf("[%s]person[%d].status = %d\n", __FUNCTION__, i , desk->person[i].status);
-            return -1;
+    if (personIndex == MAX_DESK_PLAYER - 1 &&  desk->person[personIndex].status != desk->stage) {
+        printf("[%s]person[%d].status = %d\n", __FUNCTION__, personIndex , desk->person[personIndex].status);
+    } else {
+        int i = 0;
+        for(i = personIndex + 1; i < MAX_DESK_PLAYER; i++)
+        {
+            if (getPersonConnState(&desk->psnConn[i]) == POKER_CONN_ENABLE && desk->person[i].status != desk->stage) {
+                printf("[%s]person[%d].status = %d\n", __FUNCTION__, i , desk->person[i].status);
+                return -1;
+            }
         }
     }
+
     return 0;
 }
 
