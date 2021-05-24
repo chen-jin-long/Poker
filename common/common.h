@@ -95,6 +95,7 @@ typedef struct {
   int needBet;
   int needHeartBeat;
   time_t lastMsgTime;
+  int auto_bet;
 } Client;
 
 void dumpPrivMsg(const char *msg);

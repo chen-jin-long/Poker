@@ -17,7 +17,7 @@
 #define CLIENT_HEARTBEAT_TIME 5
 #define CLIENT_START_LOOP_TIME 2
 #define CLIENT_STOP_LOOP_TIME 0
-
+#define CLIENT_CFG_NAME "client.cfg"
 #define handle_error(msg) \
   do { \
      perror(msg);\
@@ -29,6 +29,8 @@ void signalHandler(int signo);
 void *handleRecv(void *arg);
 void *handleWrite(void *arg);
 void handleJsonMsg(QueueMsg *queue_msg);
+int parse_client_conf(const char * name, Client * clt);
+
 //void handleMsg(const char *buf);
 //int getSendMsg(char *buf, int len, int action, int clientId);
 
@@ -83,6 +85,7 @@ int main(int argc,char *argv[])
   }
   g_clt->clientId = clientId;
   g_clt->betMoney = (g_clt->clientId + 1) * INIT_BET_MONEY;
+  parse_client_conf(CLIENT_CFG_NAME, g_clt);
   //g_clt->mutex = PTHREAD_MUTEX_INITIALIZER;
   //g_clt->cond = PTHREAD_COND_INITIALIZER;
   pthread_mutex_init(&g_clt->mutex, NULL);
@@ -155,14 +158,14 @@ void signalHandler(int signo)
     time_t now = time(NULL);
     switch (signo){
         case SIGALRM:
-            printf("Caught the SIGALRM signal!\n");
+            //printf("Caught the SIGALRM signal!\n");
             pthread_mutex_lock(&g_clt->mutex);
             if (now - g_clt->lastMsgTime >= CLIENT_HEARTBEAT_TIME) {
                 g_clt->needHeartBeat = 1;
             }
             pthread_cond_signal(&g_clt->cond);
             pthread_mutex_unlock(&g_clt->mutex);
-            printf("[%s] SIGALRM done.\n", __FUNCTION__);
+            //printf("[%s] SIGALRM done.\n", __FUNCTION__);
             break;
         case SIGINT:
           stop(signo);
@@ -186,12 +189,18 @@ void *handleWrite(void *arg)
           pthread_cond_wait(&g_clt->cond, &g_clt->mutex);
       }
       printf("getSendMsg...\n");
+      pthread_mutex_unlock(&g_clt->mutex);
       //getSendMsg(buf, POKER_MSG_LEN, action, g_clt->clientId);
-      snprintf(buf, sizeof(buf), "%d", g_clt->betMoney + INIT_BET_MONEY);
-    #else
-      fgets(buf,TMP_BUF_LEN,stdin);
-      if(!strncmp(buf,"closed",strlen("closed"))){
-          break;
+      if (g_clt->needBet == 1) {
+          printf("please input your money.\n");
+          if (g_clt->auto_bet) {
+            snprintf(buf, sizeof(buf), "%d", g_clt->betMoney + INIT_BET_MONEY);
+          } else {
+              fgets(buf,TMP_BUF_LEN,stdin);
+              if(!strncmp(buf,"closed",strlen("closed"))){
+                  break;
+              }
+          }
       }
     #endif
     if (g_clt->needBet) {
@@ -214,7 +223,7 @@ void *handleWrite(void *arg)
     g_clt->lastMsgTime = time_stamp;
     g_clt->needBet = 0;
     g_clt->needHeartBeat = 0;
-    pthread_mutex_unlock(&g_clt->mutex);
+    //pthread_mutex_unlock(&g_clt->mutex);
   }
 }
 
@@ -359,3 +368,29 @@ void handleJsonMsg(QueueMsg *queue_msg)
   pthread_mutex_unlock(&g_clt->mutex);
   //printf("[%s] unlock..\n", __FUNCTION__);
 }
+
+int parse_client_conf(const char * name, Client * clt)
+{
+    FILE *fp = NULL;
+    char buf[256] = {0};
+    if (name == NULL || clt == NULL) {
+        return -1;
+    }
+
+    fp = fopen(name, "r");
+    if (fp == NULL) {
+        return -2;
+    }
+    while(fgets(buf, sizeof(buf)-1,fp)) {
+        char *line = strstr(buf, "auto_bet=");
+        if (line != NULL) {
+            int auto_bet = atoi(line+strlen("auto_bet="));
+            clt->auto_bet=auto_bet;
+            printf("auto_bet=%d\n", auto_bet);
+        }
+    }
+    fclose(fp);
+    fp = NULL;
+    return 0;
+}
+
