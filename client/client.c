@@ -188,24 +188,29 @@ void *handleWrite(void *arg)
       while(g_clt->needBet == 0 && g_clt->needHeartBeat == 0) {
           pthread_cond_wait(&g_clt->cond, &g_clt->mutex);
       }
-      printf("getSendMsg...\n");
+      /* 释放锁是防止fgets时用户一直不输入，导致三个线程死锁，释放后心跳定时器会获取锁 */
       pthread_mutex_unlock(&g_clt->mutex);
       //getSendMsg(buf, POKER_MSG_LEN, action, g_clt->clientId);
-      if (g_clt->needBet == 1) {
-          printf("please input your money.\n");
-          if (g_clt->auto_bet) {
-            snprintf(buf, sizeof(buf), "%d", g_clt->betMoney + INIT_BET_MONEY);
-          } else {
-              fgets(buf,TMP_BUF_LEN,stdin);
-              if(!strncmp(buf,"closed",strlen("closed"))){
-                  break;
-              }
-          }
-      }
     #endif
+    
+    /*
+     * 即使其他线程获取了锁，导致needBet值改变了也没关系，其他线程也只会将needBet变成1，
+     * 因为needBet的优先级要高于心跳，要优先发送，可以不发送心跳报文。
+    */
+
     if (g_clt->needBet) {
+      printf("please input your money.\n");
+      if (g_clt->auto_bet) {
+        snprintf(buf, sizeof(buf), "%d", g_clt->betMoney + INIT_BET_MONEY);
+        g_clt->betMoney += INIT_BET_MONEY;
+      } else {
+          fgets(buf,TMP_BUF_LEN,stdin);
+          if(!strncmp(buf,"closed",strlen("closed"))){
+              break;
+          }
+           g_clt->betMoney += atoi(buf);
+      }
       betMsg = build_poker_msg(g_clt->clientId, "bet", buf);
-      g_clt->betMoney += INIT_BET_MONEY;
     } else if (g_clt->needHeartBeat) {
       time_stamp = time(NULL);
       memset(buf, 0, sizeof(buf));
